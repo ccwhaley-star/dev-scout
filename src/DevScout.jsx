@@ -535,15 +535,7 @@ export default function DevScout() {
       {/* Header */}
       <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <svg width="34" height="34" viewBox="0 0 32 32" fill="none">
-            <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#8b5cf6"/></linearGradient></defs>
-            <rect x="6" y="6" width="20" height="20" rx="3" fill="url(#hg)"/>
-            <line x1="11" y1="3" x2="11" y2="6" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="16" y1="3" x2="16" y2="6" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="21" y1="3" x2="21" y2="6" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="11" y1="26" x2="11" y2="29" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="16" y1="26" x2="16" y2="29" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="21" y1="26" x2="21" y2="29" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="3" y1="11" x2="6" y2="11" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="3" y1="16" x2="6" y2="16" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="3" y1="21" x2="6" y2="21" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="26" y1="11" x2="29" y2="11" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="26" y1="16" x2="29" y2="16" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/><line x1="26" y1="21" x2="29" y2="21" stroke="url(#hg)" strokeWidth="1.8" strokeLinecap="round"/>
-            <circle cx="14.5" cy="14.5" r="4" stroke="white" strokeWidth="2"/><line x1="17.5" y1="17.5" x2="21.5" y2="21.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+          <img src="/logo.svg" alt="DevScout" style={{ width: 38, height: 38 }} />
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 19, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "-0.02em" }}>DevScout</div>
             <div style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.12em" }}>AI-POWERED PROSPECTING</div>
@@ -578,16 +570,16 @@ export default function DevScout() {
           </div>
 
           <button onClick={runScan} disabled={phase === "scanning" || enrichPhase === "enriching"}
-            style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: phase === "scanning" ? "not-allowed" : "pointer", background: phase === "scanning" ? "#e2e8f0" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: phase === "scanning" ? "#94a3b8" : "white", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: phase === "scanning" ? "not-allowed" : "pointer", background: phase === "scanning" ? "#e2e8f0" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: phase === "scanning" ? "#94a3b8" : "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {phase === "scanning"
               ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #94a3b8", borderTopColor: "#475569", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />SCANNING...</>
-              : "⚡ RUN LIVE SCAN"}
+              : "⚡ SCAN FOR PROSPECTS"}
           </button>
 
           {phase === "idle" && (
             <button onClick={loadDemo}
               style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "#ffffff", color: "#64748b", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
-              🧪 LOAD DEMO DATA
+              ▶&nbsp;&nbsp;LOAD DEMO DATA
             </button>
           )}
 
