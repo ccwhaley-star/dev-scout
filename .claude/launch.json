@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "devscout-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Github_folder/devscout/start-dev.js"],
+      "port": 5173
+    }
+  ]
+}
