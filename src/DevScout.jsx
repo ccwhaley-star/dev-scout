@@ -2,6 +2,18 @@ import { useState, useRef, useCallback, useMemo } from "react";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
 
+const INDUSTRY_ICONS = { Healthcare: "⚕️", Finance: "💲", FinTech: "💳", Manufacturing: "🏭", Retail: "🛒", Logistics: "🚚", Insurance: "🛡️", Education: "🎓", "Real Estate": "🏠", Energy: "⚡", Publishing: "📚", "Food Production": "🌾", Weather: "🌤️", "Professional Services": "💼", Aerospace: "✈️", Automotive: "🚗", Media: "📺", Telecom: "📡", "Waste Management": "♻️", Agriculture: "🌱" };
+
+const BADGE_BASE = { fontSize: 10, fontWeight: 600, fontFamily: "monospace", padding: "3px 8px", borderRadius: 4 };
+const STEP_COLORS = {
+  ready: { color: "#6366f1", background: "#eef2ff", border: "1px solid #c7d2fe" },
+  sent: { color: "#3b82f6", background: "#eff6ff", border: "1px solid #bfdbfe" },
+  replied: { color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe" },
+  researching: { color: "#3b82f6", background: "#eff6ff", border: "1px solid #bfdbfe" },
+};
+const ACCENT_COLORS = { sent: "#3b82f6", replied: "#7c3aed" };
+const DEFAULT_ACCENT = "#6366f1";
+
 const MatchBar = ({ value }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
     <div style={{ flex: 1, height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden" }}>
@@ -32,13 +44,15 @@ const AGENT_MODEL = "claude-haiku-4-5-20251001";
 const AGENT_MAX_ROUNDS = 6;
 
 // ── Shared agentic loop: handles tool_use rounds until stop_reason = "end_turn" ──
-async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog }) {
+async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, signal }) {
   const messages = [{ role: "user", content: userMsg }];
 
   for (let round = 0; round < AGENT_MAX_ROUNDS; round++) {
+    if (signal?.aborted) throw new DOMException("Scan stopped", "AbortError");
     const res = await fetch(`${API_URL}/api/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal,
       body: JSON.stringify({
         model: AGENT_MODEL,
         max_tokens,
@@ -80,8 +94,8 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog }) {
   throw new Error("Agent did not produce a final response after max rounds.");
 }
 
-async function runAgentLoop(userMsg, onSearchLog) {
-  return runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`) });
+async function runAgentLoop(userMsg, onSearchLog, signal) {
+  return runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
 }
 
 const SYSTEM_ENRICH = `You are a LinkedIn connection research agent. Given a list of companies with recruiters and a user's LinkedIn profile or name, determine if the user might have connections at those companies.
@@ -181,6 +195,7 @@ Return ONLY a raw JSON object — no markdown, no code fences:
 }
 
 Guidelines:
+- IMPORTANT: Use \\n\\n between paragraphs in email bodies for proper spacing. Each paragraph should be separated by a blank line.
 - Write like an expert B2B sales copywriter, not a marketer
 - Every sentence must earn its place — cut anything that doesn't move toward a reply
 - Lead with outcomes and specifics, never with company descriptions
@@ -273,11 +288,41 @@ export default function DevScout() {
   const [enrichProgress, setEnrichProgress] = useState(0);
   const logRef = useRef(null);
 
+  const DEMO_SEQUENCES = {
+      "demo-1": {
+        step: "ready", activeEmail: 0, notes: "",
+        research: "MedVault Health is a fast-growing healthtech company in Austin, TX with 420 employees. They have 6 open developer roles that have been unfilled for 3+ weeks, signaling hiring urgency. Sarah Chen, their Technical Recruiter, is a 2nd-degree LinkedIn connection via David Kim (Engineering Lead at HealthStack). MedVault has no existing offshore or nearshore partnerships, making them an ideal prospect for BairesDev's healthcare vertical expertise.",
+        emails: [
+          { type: "intro", subject: "Your 6 unfilled dev roles at MedVault", body: "Sarah — I noticed MedVault has had Senior Backend and DevOps roles open for 3+ weeks. In healthtech, that kind of delay can stall product timelines fast.\n\nWe at BairesDev just helped a Series B healthtech company staff 4 senior engineers in under 3 weeks — all HIPAA-experienced, all retained past 12 months.\n\nWorth a 15-minute call this week to see if we can help clear your backlog?" },
+          { type: "follow-up-1", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — quick follow-up. A mid-size EHR platform we work with cut their time-to-hire from 8 weeks to 12 days using our pre-vetted nearshore engineers.\n\nHappy to share specifics if useful." },
+          { type: "follow-up-2", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — I know things move fast in healthtech recruiting. No worries if the timing isn't right.\n\nIf those roles are still open down the road, I'm here. Happy to help whenever it makes sense." }
+        ]
+      },
+      "demo-2": {
+        step: "ready", activeEmail: 0, notes: "",
+        research: "FreightWise Logistics is a mid-size logistics company in Nashville, TN with 680 employees. They're hiring Full Stack Developers and React Engineers, suggesting a digital transformation or platform build. Marcus Johnson is the Hiring Manager. No existing offshore teams detected, and their Nashville location means high cost-of-living talent competition. BairesDev's logistics experience with route optimization and supply chain platforms is directly relevant.",
+        emails: [
+          { type: "intro", subject: "Scaling your dev team at FreightWise", body: "Marcus — saw FreightWise is hiring Full Stack and React engineers in Nashville. Competing for that talent against healthcare and fintech in the same market is tough.\n\nBairesDev recently helped a $200M logistics company build out their real-time tracking platform with 3 senior React devs — deployed in under 2 weeks, still on the team 8 months later.\n\nOpen to a quick call to see if we could help accelerate your hiring?" },
+          { type: "follow-up-1", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — one more data point. A freight management company we work with saved ~40% on engineering costs by augmenting with our nearshore team, without sacrificing code quality or velocity.\n\nHappy to walk through how they structured it." },
+          { type: "follow-up-2", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — totally understand if this isn't a priority right now.\n\nIf those roles are still open later or if you need to scale quickly, feel free to reach out anytime." }
+        ]
+      },
+      "demo-3": {
+        step: "ready", activeEmail: 0, notes: "",
+        research: "Apex Financial Group is a Series C fintech in Denver, CO with 310 employees and 8 open engineering roles — signaling aggressive growth. Jessica Park, VP of Engineering, is leading the hiring push. With a small eng team in a high cost-of-living market, they're likely struggling to compete for local talent. BairesDev's fintech expertise (SOC 2 compliant teams, PCI-DSS experience) and track record with similar-stage companies make this a strong fit.",
+        emails: [
+          { type: "intro", subject: "8 open eng roles at Apex — let's fix that", body: "Jessica — 8 engineering roles open at a 310-person fintech is a big lift, especially in Denver's market right now.\n\nBairesDev helped a Series B payments company staff 5 senior engineers in 10 days — all with SOC 2 and PCI-DSS experience. They shipped their compliance milestone 3 weeks early.\n\nWorth 15 minutes to see if we can help Apex move faster?" },
+          { type: "follow-up-1", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — another fintech we work with (similar stage to Apex) cut their engineering costs by 35% while doubling their deployment frequency with our nearshore team.\n\nHappy to share the playbook if it's useful." },
+          { type: "follow-up-2", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — I know scaling engineering at a Series C pace is intense. No pressure at all.\n\nIf those roles are still open or you need to ramp quickly, I'm a message away." }
+        ]
+      }
+  };
+
   const loadDemo = () => {
     const demoProspects = [
       { id: "demo-1", company: "MedVault Health", industry: "Healthcare", size: 420, sizeSource: "LinkedIn", location: "Austin, TX", roles: ["Senior Backend Engineer", "DevOps Engineer"], source: "LinkedIn", posted: "2d ago", matchScore: 92, linkedinUrl: "https://linkedin.com/company/medvault", nearshoreScore: 88, nearshoreSignals: ["No existing offshore presence", "6 open dev roles unfilled 3+ weeks", "Non-tech healthcare company scaling fast"], recruiter: { name: "Sarah Chen", title: "Technical Recruiter", linkedinUrl: "https://linkedin.com/in/sarah-chen" }, connectionStatus: { status: "possible", connectionDegree: "2nd", details: "You and Sarah Chen both worked at companies in the Austin healthtech ecosystem", mutualConnections: ["David Kim - Engineering Lead at HealthStack"], sharedGroups: [] }, companyRelationship: "Shared Austin tech community", recruiterRelationship: "2nd degree via David Kim" },
       { id: "demo-2", company: "FreightWise Logistics", industry: "Logistics", size: 680, sizeSource: "Indeed", location: "Nashville, TN", roles: ["Full Stack Developer", "React Engineer"], source: "Indeed", posted: "5d ago", matchScore: 85, linkedinUrl: "", indeedUrl: "https://indeed.com/jobs?q=freightwise", nearshoreScore: 76, nearshoreSignals: ["Mid-size logistics firm", "2 dev roles open", "No mention of offshore teams"], recruiter: { name: "Marcus Johnson", title: "Hiring Manager", linkedinUrl: "https://linkedin.com/in/marcus-johnson" } },
-      { id: "demo-3", company: "Apex Financial Group", industry: "Finance", size: 310, sizeSource: "LinkedIn", location: "Denver, CO", roles: ["Software Engineer", "Data Engineer", "Platform Engineer"], source: "Multiple", posted: "1d ago", matchScore: 95, linkedinUrl: "https://linkedin.com/company/apex-financial", ziprecruiterUrl: "https://ziprecruiter.com/c/apex-financial", nearshoreScore: 91, nearshoreSignals: ["Series C fintech, aggressive hiring", "8 engineering roles open", "High cost-of-living market with small eng team"], recruiter: { name: "Jessica Park", title: "VP of Engineering", linkedinUrl: "https://linkedin.com/in/jessica-park" } },
+      { id: "demo-3", company: "Apex Financial Group", industry: "Finance", size: 310, sizeSource: "LinkedIn", location: "Denver, CO", roles: ["Software Engineer", "Software Engineer", "Software Engineer", "Data Engineer", "Platform Engineer"], source: "Multiple", posted: "1d ago", matchScore: 95, linkedinUrl: "https://linkedin.com/company/apex-financial", ziprecruiterUrl: "https://ziprecruiter.com/c/apex-financial", nearshoreScore: 91, nearshoreSignals: ["Series C fintech, aggressive hiring", "8 engineering roles open", "High cost-of-living market with small eng team"], recruiter: { name: "Jessica Park", title: "VP of Engineering", linkedinUrl: "https://linkedin.com/in/jessica-park" } },
     ];
     setResults(demoProspects);
     setPhase("done");
@@ -299,6 +344,12 @@ export default function DevScout() {
   }, []);
 
   const nextId = useRef(1);
+  const scanAbort = useRef(null);
+
+  const stopScan = () => {
+    if (scanAbort.current) { scanAbort.current.abort(); scanAbort.current = null; }
+    setPhase("idle"); setProgress(0); setSummary("");
+  };
 
   const clearAll = () => {
     setResults([]); setSummary(""); setSequences({}); setSelected(null); setPhase("idle"); setLogs([]); nextId.current = 1;
@@ -306,6 +357,8 @@ export default function DevScout() {
   };
 
   const runScan = async () => {
+    const controller = new AbortController();
+    scanAbort.current = controller;
     setPhase("scanning"); setSummary(""); setLogs([]); setProgress(5); setSelected(null); setErrorMsg("");
     pushLog("Initializing search agent...");
 
@@ -326,7 +379,7 @@ export default function DevScout() {
         clearInterval(rampTimer);
         setProgress(Math.min(20 + searchCount * 6, 85));
         pushLog(query);
-      });
+      }, controller.signal);
 
       clearInterval(rampTimer);
       setProgress(90);
@@ -409,6 +462,7 @@ export default function DevScout() {
 
     } catch (err) {
       clearInterval(rampTimer);
+      if (err.name === "AbortError") { scanAbort.current = null; return; }
       console.error(err);
       const friendly = err.message.includes("rate limit") ? "Rate limit reached — please wait 1 minute before scanning again."
         : err.message.includes("credit balance") ? "API credits depleted — please add credits at console.anthropic.com."
@@ -436,6 +490,11 @@ export default function DevScout() {
   const startSequence = async (prospect) => {
     const id = prospect.id;
     if (sequences[id]?.step === "researching") return;
+    // Use pre-built demo data for demo prospects
+    if (DEMO_SEQUENCES[id]) {
+      setSequences(prev => ({ ...prev, [id]: { ...DEMO_SEQUENCES[id] } }));
+      return;
+    }
     setSequences(prev => ({ ...prev, [id]: { step: "researching", research: "", emails: [], activeEmail: 0, notes: prev[id]?.notes || "" } }));
     try {
       const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl));
@@ -469,7 +528,7 @@ export default function DevScout() {
         </div>
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
           <span className="ds-hide-mobile" style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em" }}>INDEED · LINKEDIN · ZIPRECRUITER · BUILTIN · DICE</span>
-          {activeSequenceCount > 0 && <span style={{ fontSize: 12, fontFamily: "monospace", color: "#64748b" }}><span style={{ color: "#3b82f6", fontWeight: 700 }}>{activeSequenceCount}</span> sequenced</span>}
+          {activeSequenceCount > 0 && <span style={{ fontSize: 12, fontFamily: "monospace", color: "#64748b" }}><span style={{ color: "#3b82f6", fontWeight: 700 }}>{activeSequenceCount}</span> prospecting</span>}
           {phase === "done" && <span style={{ fontSize: 11, color: "#16a34a", fontFamily: "monospace" }}>● LIVE DATA</span>}
         </div>
       </div>
@@ -495,12 +554,17 @@ export default function DevScout() {
             <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginTop: 4 }}>Enables recruiter cross-referencing</div>
           </div>
 
-          <button onClick={runScan} disabled={phase === "scanning" || enrichPhase === "enriching"}
-            style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: phase === "scanning" ? "not-allowed" : "pointer", background: phase === "scanning" ? "#e2e8f0" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: phase === "scanning" ? "#94a3b8" : "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {phase === "scanning"
-              ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #94a3b8", borderTopColor: "#475569", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />SCANNING...</>
-              : "⚡ SCAN FOR PROSPECTS"}
-          </button>
+          {phase === "scanning" ? (
+            <button onClick={stopScan}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: "pointer", background: "#ef4444", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              ■ STOP SCAN
+            </button>
+          ) : (
+            <button onClick={runScan} disabled={enrichPhase === "enriching"}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              ⚡ SCAN FOR PROSPECTS
+            </button>
+          )}
 
           {phase === "idle" && (
             <button onClick={loadDemo}
@@ -595,16 +659,20 @@ export default function DevScout() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {filtered.map(r => {
                   const isOpen = selected?.id === r.id;
+                  const seq = sequences[r.id];
+                  const seqStep = seq?.step;
+                  const isActive = seqStep && seqStep !== "idle";
                   const initials = r.company.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
                   const hue = (r.company.charCodeAt(0) * 37 + (r.company.charCodeAt(1) || 0) * 13) % 360;
                   const lc = `hsl(${hue},50%,45%)`;
 
                   return (
                     <div key={r.id} onClick={() => setSelected(isOpen ? null : r)}
-                      style={{ background: "#ffffff", border: `1px solid ${isOpen ? "#3b82f6" : "#e2e8f0"}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", transition: "all 0.15s", boxShadow: isOpen ? "0 1px 8px rgba(59,130,246,0.08)" : "0 1px 3px rgba(0,0,0,0.04)" }}>
+                      style={{ background: "#ffffff", border: `1px solid ${isOpen ? "#3b82f6" : "#e2e8f0"}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", transition: "all 0.15s", position: "relative", boxShadow: `${isActive ? `inset 3px 0 0 ${ACCENT_COLORS[seqStep] || DEFAULT_ACCENT}, ` : ""}${isOpen ? "0 1px 8px rgba(59,130,246,0.08)" : "0 1px 3px rgba(0,0,0,0.04)"}` }}>
+                      <span className="ds-show-mobile" style={{ display: "none", position: "absolute", top: 12, right: 14, fontSize: 13, fontWeight: 700, fontFamily: "monospace", color: (r.matchScore || 0) >= 85 ? "#16a34a" : (r.matchScore || 0) >= 70 ? "#d97706" : "#94a3b8" }}>{r.matchScore || 0}%</span>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <div style={{ width: 42, height: 42, borderRadius: 9, background: lc + "18", border: `1px solid ${lc}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: lc, fontFamily: "monospace", flexShrink: 0, overflow: "hidden", position: "relative" }}>
+                      <div className="ds-card-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                        <div className="ds-hide-mobile" style={{ width: 42, height: 42, borderRadius: 9, background: lc + "18", border: `1px solid ${lc}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: lc, fontFamily: "monospace", flexShrink: 0, overflow: "hidden", position: "relative" }}>
                           {initials}
                           <img
                             src={`https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`}
@@ -623,30 +691,52 @@ export default function DevScout() {
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
                             <span style={{ fontWeight: 600, fontSize: 15, color: "#0f172a" }}>{r.company}</span>
                             <Tag color={sourceColors[r.source] || "#64748b"}>{r.source || "—"}</Tag>
-                            {r.connectionStatus?.status === "likely" && <Tag color="#16a34a">Connected</Tag>}
-                            {r.connectionStatus?.status === "possible" && <Tag color="#d97706">Possible Link</Tag>}
+                            {r.connectionStatus && r.connectionStatus.status !== "none" && r.connectionStatus.connectionDegree && r.connectionStatus.connectionDegree !== "unknown" && (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#0a66c2", marginLeft: 4 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2"><path d="M20.47 2H3.53A1.45 1.45 0 002 3.47v17.06A1.45 1.45 0 003.53 22h16.94A1.45 1.45 0 0022 20.53V3.47A1.45 1.45 0 0020.47 2zM8.09 18.74h-3v-9h3v9zM6.59 8.48a1.56 1.56 0 110-3.12 1.56 1.56 0 010 3.12zm12.32 10.26h-3v-4.83c0-1.21-.43-2-1.52-2A1.65 1.65 0 0012.85 13a2 2 0 00-.1.73v5h-3v-9h3v1.2a3 3 0 012.71-1.5c2 0 3.45 1.29 3.45 4.06v5.25z"/></svg>
+                                · {r.connectionStatus.connectionDegree}
+                              </span>
+                            )}
                             {r.posted && <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{r.posted}</span>}
                           </div>
                           <div style={{ display: "flex", gap: 14, fontSize: 12, color: "#64748b", flexWrap: "wrap" }}>
-                            {r.location && <span>📍 {r.location}</span>}
-                            {r.industry && <span>{({ Healthcare: "⚕️", Finance: "💲", FinTech: "💳", Manufacturing: "🏭", Retail: "🛒", Logistics: "🚚", Insurance: "🛡️", Education: "🎓", "Real Estate": "🏠", Energy: "⚡", Publishing: "📚", "Food Production": "🌾", Weather: "🌤️", "Professional Services": "💼", Aerospace: "✈️", Automotive: "🚗", Media: "📺", Telecom: "📡", "Waste Management": "♻️", Agriculture: "🌱" }[r.industry] || "🏢")} {r.industry}</span>}
-                            {r.size && <span style={{ fontFamily: "monospace", color: "#3b82f6" }}>{r.size.toLocaleString()} employees{r.sizeSource ? <span style={{ color: "#93c5fd", fontSize: 10 }}> via {r.sizeSource}</span> : ""}</span>}
+                            {r.location && <span>{r.location}</span>}
+                            {r.industry && <span>{INDUSTRY_ICONS[r.industry] || "🏢"} {r.industry}</span>}
+                            {r.size && <span>{r.size.toLocaleString()} employees</span>}
                           </div>
+                          {(r.roles || []).length > 0 && (() => {
+                            const grouped = (r.roles || []).reduce((acc, role) => { acc[role] = (acc[role] || 0) + 1; return acc; }, {});
+                            return (
+                            <div style={{ marginTop: 14 }}>
+                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Open Developer Roles</div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                {Object.entries(grouped).map(([role, count]) => (
+                                  <div key={role} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />{role}{count > 1 ? ` (${count})` : ""}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            );
+                          })()}
+                          {(!seq || seqStep === "idle") && (
+                            <div style={{ marginTop: 14 }}>
+                              <button onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
+                                style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
+                                ▶ Start Sequence
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <div style={{ width: 150, flexShrink: 0 }}>
+                        <div className="ds-hide-mobile" style={{ width: 150, flexShrink: 0 }}>
                           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: "monospace" }}>MATCH SCORE</div>
                           <MatchBar value={r.matchScore || 0} />
                         </div>
-                        {r.nearshoreScore != null && (
-                          <div style={{ width: 90, flexShrink: 0, textAlign: "center" }}>
-                            <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: "monospace" }}>NEARSHORE</div>
-                            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: r.nearshoreScore >= 80 ? "#16a34a" : r.nearshoreScore >= 50 ? "#d97706" : "#94a3b8" }}>{r.nearshoreScore}%</span>
-                          </div>
-                        )}
-                        {sequences[r.id]?.step === "ready" && <span style={{ fontSize: 10, fontWeight: 600, color: "#16a34a", fontFamily: "monospace", padding: "3px 8px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4 }}>READY</span>}
-                        {sequences[r.id]?.step === "sent" && <span style={{ fontSize: 10, fontWeight: 600, color: "#3b82f6", fontFamily: "monospace", padding: "3px 8px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4 }}>SENT</span>}
-                        {sequences[r.id]?.step === "replied" && <span style={{ fontSize: 10, fontWeight: 600, color: "#7c3aed", fontFamily: "monospace", padding: "3px 8px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 4 }}>REPLIED</span>}
-                        {sequences[r.id]?.step === "researching" && <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #cbd5e1", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />}
+                        {seqStep === "ready" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.ready, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "pulse 2s ease-in-out infinite" }} />PROSPECTING</span>}
+                        {seqStep === "sent" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.sent }}>SENT</span>}
+                        {seqStep === "replied" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.replied }}>REPLIED</span>}
+                        {seqStep === "researching" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.researching, display: "flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #bfdbfe", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />RESEARCHING</span>}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M6 9l6 6 6-6"/></svg>
                         <button onClick={e => { e.stopPropagation(); setResults(prev => prev.filter(p => p.id !== r.id)); setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; }); if (selected?.id === r.id) setSelected(null); }}
                           title="Remove prospect"
                           style={{ padding: 4, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", color: "#cbd5e1", display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
@@ -720,100 +810,49 @@ export default function DevScout() {
                             </div>
                           )}
 
-                          {/* Nearshore Propensity */}
-                          {r.nearshoreScore != null && (
-                            <div style={{ marginBottom: 14 }}>
-                              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>NEARSHORE PROPENSITY</div>
-                              <div style={{
-                                background: r.nearshoreScore >= 80 ? "#f0fdf4" : r.nearshoreScore >= 50 ? "#fffbeb" : "#f8fafc",
-                                border: `1px solid ${r.nearshoreScore >= 80 ? "#bbf7d0" : r.nearshoreScore >= 50 ? "#fde68a" : "#e2e8f0"}`,
-                                borderRadius: 8, padding: "12px 16px"
-                              }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: r.nearshoreScore >= 80 ? "#16a34a" : r.nearshoreScore >= 50 ? "#d97706" : "#94a3b8" }}>{r.nearshoreScore}%</span>
-                                  <span style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>
-                                    {r.nearshoreScore >= 80 ? "High Propensity" : r.nearshoreScore >= 50 ? "Medium Propensity" : "Low Propensity"}
-                                  </span>
-                                </div>
-                                {(r.nearshoreSignals || []).length > 0 && (
-                                  <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7 }}>
-                                    {r.nearshoreSignals.map((s, i) => <div key={i}>· {s}</div>)}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
 
-                          <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 10, letterSpacing: "0.08em" }}>OPEN DEVELOPER ROLES</div>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                            {(r.roles || []).map(role => (
-                              <div key={role} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "7px 14px", fontSize: 13, color: "#475569", display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />{role}
-                              </div>
-                            ))}
-                          </div>
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            {r.linkedinUrl && <a href={r.linkedinUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #bfdbfe", color: "#0a66c2", fontSize: 12, textDecoration: "none", fontFamily: "monospace" }}>LinkedIn →</a>}
-                            {r.indeedUrl && <a href={r.indeedUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #bfdbfe", color: "#2557a7", fontSize: 12, textDecoration: "none", fontFamily: "monospace" }}>Indeed →</a>}
-                            {r.ziprecruiterUrl && <a href={r.ziprecruiterUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #bbf7d0", color: "#00a960", fontSize: 12, textDecoration: "none", fontFamily: "monospace" }}>ZipRecruiter →</a>}
-                            {r.builtinUrl && <a href={r.builtinUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #fed7aa", color: "#f26522", fontSize: 12, textDecoration: "none", fontFamily: "monospace" }}>BuiltIn →</a>}
-                            {r.diceUrl && <a href={r.diceUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #fca5a5", color: "#eb1c26", fontSize: 12, textDecoration: "none", fontFamily: "monospace" }}>Dice →</a>}
-                            {(!sequences[r.id] || sequences[r.id].step === "idle") && (
-                              <button onClick={e => { e.stopPropagation(); startSequence(r); }}
-                                style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
-                                ▶ Start Sequence
-                              </button>
-                            )}
-                            {sequences[r.id]?.step === "researching" && (
+                            {seqStep === "researching" && (
                               <button disabled style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#94a3b8", fontSize: 12, cursor: "not-allowed", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #cbd5e1", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Preparing...
                               </button>
                             )}
-                            {sequences[r.id]?.step === "ready" && (
-                              <button onClick={e => { e.stopPropagation(); setSelected(r); }}
-                                style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#16a34a", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
-                                ✉ View Sequence
-                              </button>
-                            )}
-                            {(sequences[r.id]?.step === "sent" || sequences[r.id]?.step === "replied") && (
-                              <span style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontFamily: "monospace", fontWeight: 600 }}>
-                                {sequences[r.id].step === "sent" ? "✓ Sent" : "💬 Replied"}
-                              </span>
-                            )}
                           </div>
 
                           {/* Sequence Panel */}
-                          {sequences[r.id]?.step && sequences[r.id].step !== "idle" && sequences[r.id].step !== "researching" && isOpen && (
+                          {isActive && seqStep !== "researching" && isOpen && (
                             <div style={{ marginTop: 16, borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
                               {/* Research Brief */}
-                              {sequences[r.id].research && (
+                              {seq.research && (
                                 <div style={{ marginBottom: 16 }}>
                                   <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>RESEARCH BRIEF</div>
                                   <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", fontSize: 13, color: "#334155", lineHeight: 1.7 }}>
-                                    {sequences[r.id].research}
+                                    {seq.research}
                                   </div>
                                 </div>
                               )}
 
                               {/* Email Tabs */}
-                              {(sequences[r.id].emails || []).length > 0 && (
+                              {(seq.emails || []).length > 0 && (
                                 <div style={{ marginBottom: 16 }}>
                                   <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>OUTREACH SEQUENCE</div>
                                   <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-                                    {sequences[r.id].emails.map((em, idx) => (
+                                    {seq.emails.map((em, idx) => (
                                       <button key={idx} onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], activeEmail: idx } })); }}
-                                        style={{ padding: "6px 12px", borderRadius: 5, border: `1px solid ${(sequences[r.id].activeEmail || 0) === idx ? "#3b82f6" : "#e2e8f0"}`, background: (sequences[r.id].activeEmail || 0) === idx ? "#eff6ff" : "#ffffff", color: (sequences[r.id].activeEmail || 0) === idx ? "#3b82f6" : "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
+                                        style={{ padding: "6px 12px", borderRadius: 5, border: `1px solid ${(seq.activeEmail || 0) === idx ? "#3b82f6" : "#e2e8f0"}`, background: (seq.activeEmail || 0) === idx ? "#eff6ff" : "#ffffff", color: (seq.activeEmail || 0) === idx ? "#3b82f6" : "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
                                         {em.type === "intro" ? "Intro" : em.type === "follow-up-1" ? "Follow-up 1" : "Follow-up 2"}
                                       </button>
                                     ))}
                                   </div>
                                   {(() => {
-                                    const em = sequences[r.id].emails[sequences[r.id].activeEmail || 0];
+                                    const em = seq.emails[seq.activeEmail || 0];
                                     if (!em) return null;
                                     return (
                                       <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px" }}>
                                         <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Subject: {em.subject}</div>
-                                        <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{em.body}</div>
+                                        <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.7 }}>
+                                          {em.body.split(/\n\n+/).map((para, pi) => <p key={pi} style={{ margin: "0 0 10px 0" }}>{para}</p>)}
+                                        </div>
                                         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                                           <button onClick={e => {
                                               e.stopPropagation();
@@ -821,13 +860,13 @@ export default function DevScout() {
                                               const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(em.subject)}&body=${encodeURIComponent(em.body)}`;
                                               window.open(gmailUrl, "_blank");
                                             }}
-                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8 }}>
                                             <svg width="16" height="12" viewBox="0 0 48 36" fill="none"><path d="M6 0h36c3.3 0 6 2.7 6 6v24c0 3.3-2.7 6-6 6H6c-3.3 0-6-2.7-6-6V6c0-3.3 2.7-6 6-6z" fill="#F1F3F4"/><path d="M2 6l22 15L46 6" stroke="#EA4335" strokeWidth="2" fill="none"/><path d="M0 6v24c0 3.3 2.7 6 6 6h4V12L0 6z" fill="#4285F4"/><path d="M48 6v24c0 3.3-2.7 6-6 6h-4V12l10-6z" fill="#34A853"/><path d="M10 36V12L24 21 38 12v24" fill="#C5221F" opacity="0.05"/><path d="M0 6l10 6 14 9 14-9 10-6" fill="none"/><path d="M0 6l24 15L48 6" stroke="#EA4335" strokeWidth="0" fill="none"/><rect x="10" y="0" width="28" height="12" rx="0" fill="#C5221F" opacity="0.9"/><path d="M10 12L0 6c0-3.3 2.7-6 6-6h4v12z" fill="#F14336"/><path d="M38 12l10-6c0-3.3-2.7-6-6-6h-4v12z" fill="#FBBC05"/><path d="M10 12l14 9 14-9" fill="#C5221F"/></svg>
                                             Draft in Gmail
                                           </button>
                                           <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`Subject: ${em.subject}\n\n${em.body}`); }}
-                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
-                                            📋 Copy Email
+                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8 }}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Email
                                           </button>
                                         </div>
                                       </div>
@@ -838,21 +877,20 @@ export default function DevScout() {
 
                               {/* Status Actions */}
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                {sequences[r.id].step === "ready" && (
+                                {seqStep === "ready" && (
                                   <button onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "sent" } })); }}
-                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#16a34a", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
+                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #d1d5db", background: "#f9fafb", color: "#6b7280", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
                                     Mark Sent
                                   </button>
                                 )}
-                                {sequences[r.id].step === "sent" && (
-                                  <button onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "replied" } })); }}
-                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #ddd6fe", background: "#f5f3ff", color: "#7c3aed", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
-                                    Mark Replied
-                                  </button>
+                                {seqStep === "sent" && (
+                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #d1d5db", background: "#f3f4f6", color: "#9ca3af", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sent
+                                  </span>
                                 )}
-                                <button onClick={e => { e.stopPropagation(); setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; }); }}
-                                  style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #fecaca", background: "#ffffff", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
-                                  Reset
+                                <button onClick={e => { e.stopPropagation(); setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; }); setSelected(null); }}
+                                  style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #fecaca", background: "#ffffff", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ width: 8, height: 8, background: "#ef4444", display: "inline-block" }} /> Stop Prospecting
                                 </button>
                               </div>
                             </div>
@@ -868,11 +906,14 @@ export default function DevScout() {
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @media (max-width: 768px) {
-  .ds-layout { flex-direction: column !important; }
+  .ds-layout { flex-direction: column !important; overflow: visible !important; }
   .ds-sidebar { width: 100% !important; border-right: none !important; border-top: 1px solid #e2e8f0; order: 2; }
-  .ds-main { padding: 16px !important; order: 1; }
+  .ds-main { padding: 16px !important; order: 1; overflow: visible !important; flex: none !important; }
   .ds-hide-mobile { display: none !important; }
+  .ds-show-mobile { display: flex !important; }
+  .ds-card-row { gap: 8px !important; }
 }`}</style>
     </div>
   );
