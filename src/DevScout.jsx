@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
 
@@ -78,20 +78,21 @@ nearshoreSignals: Array of 2-3 short reasons explaining the score.
 Return 8-12 prospects. Your entire response must be only the JSON object.`;
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const AGENT_MODEL = "claude-haiku-4-5-20251001";
+const AGENT_MAX_ROUNDS = 6;
 
-// ── Agentic loop: handles tool_use rounds until stop_reason = "end_turn" ──
-async function runAgentLoop(userMsg, onSearchLog) {
+// ── Shared agentic loop: handles tool_use rounds until stop_reason = "end_turn" ──
+async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog }) {
   const messages = [{ role: "user", content: userMsg }];
-  const MAX_ROUNDS = 12;
 
-  for (let round = 0; round < MAX_ROUNDS; round++) {
+  for (let round = 0; round < AGENT_MAX_ROUNDS; round++) {
     const res = await fetch(`${API_URL}/api/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4000,
-        system: SYSTEM,
+        model: AGENT_MODEL,
+        max_tokens,
+        system,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages
       })
@@ -103,38 +104,34 @@ async function runAgentLoop(userMsg, onSearchLog) {
     }
 
     const data = await res.json();
-
-    // Collect tool use blocks & text blocks
     const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
     const textBlocks = data.content.filter(b => b.type === "text");
 
-    // If there are tool_use blocks, log them and build tool_result turn
     if (toolUseBlocks.length > 0) {
-      toolUseBlocks.forEach(b => {
-        if (b.name === "web_search" && b.input?.query) {
-          onSearchLog(`Searching: "${b.input.query}"`);
-        }
-      });
-
-      // Push assistant turn with all content blocks
+      if (onSearchLog) {
+        toolUseBlocks.forEach(b => {
+          if (b.name === "web_search" && b.input?.query) {
+            onSearchLog(b.input.query);
+          }
+        });
+      }
       messages.push({ role: "assistant", content: data.content });
-
-      // Build tool_result blocks (the API handles actual results; we just ack)
-      const toolResults = toolUseBlocks.map(b => ({
+      messages.push({ role: "user", content: toolUseBlocks.map(b => ({
         type: "tool_result",
         tool_use_id: b.id,
         content: b.output ?? "Search completed."
-      }));
-      messages.push({ role: "user", content: toolResults });
+      })) });
       continue;
     }
 
-    // No tool use — this is the final response
-    const raw = textBlocks.map(b => b.text).join("").trim();
-    return raw;
+    return textBlocks.map(b => b.text).join("").trim();
   }
 
   throw new Error("Agent did not produce a final response after max rounds.");
+}
+
+async function runAgentLoop(userMsg, onSearchLog) {
+  return runAgentLoopCore({ system: SYSTEM, max_tokens: 4000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`) });
 }
 
 const SYSTEM_ENRICH = `You are a LinkedIn connection research agent. Given a list of companies with recruiters and a user's LinkedIn profile or name, determine if the user might have connections at those companies.
@@ -162,6 +159,7 @@ Return ONLY a raw JSON object — no markdown, no code fences:
       "recruiterRelationship": "Former colleague at Google",
       "connectionStatus": {
         "status": "possible",
+        "connectionDegree": "2nd",
         "details": "User and recruiter both worked at Google in 2020-2022",
         "mutualConnections": ["John Doe - VP Engineering"],
         "sharedGroups": ["React Developers Community"]
@@ -185,6 +183,12 @@ recruiterRelationship: Describe the user's relationship to the recruiter. Exampl
 - "Shared LinkedIn group ([group])"
 - "No known connection"
 
+connectionDegree: Estimate the LinkedIn connection degree based on your research:
+- "1st": Direct evidence they are connected (mutual interactions, endorsements, shared content)
+- "2nd": They share mutual connections or former colleagues
+- "3rd": Weak signals only (same industry group, same university different years, same large employer but no overlap)
+- "unknown": No signals to estimate degree
+
 status values:
 - "none": No connection signals found
 - "possible": Indirect signals (shared employer/school/group)
@@ -206,12 +210,12 @@ Then produce a JSON response with:
 
 Return ONLY a raw JSON object — no markdown, no code fences:
 {
-  "research": "2-3 paragraph brief: company context, recruiter background, why this is a good prospect, specific talking points to reference",
+  "research": "2-3 paragraph brief: company context, recruiter background, LinkedIn connection degree (1st/2nd/3rd) to the recruiter and how that connection exists, why this is a good prospect, specific talking points to reference",
   "emails": [
     {
       "type": "intro",
       "subject": "Short, personalized subject line",
-      "body": "The intro email body. Reference specific details about the company/role. If there's a connection (shared employer, school, group), mention it naturally. Keep it concise (3-5 sentences). End with a clear call to action."
+      "body": "The intro email body. Reference specific details about the company/role. If there's a connection (shared employer, school, group), mention it naturally. Include 1-2 relevant BairesDev client references or public case studies from a similar industry to build credibility (e.g. 'We helped a Series B healthtech company scale their backend team by 4 engineers in 3 weeks' or reference known BairesDev clients like Google, Salesforce, BMW, Pinterest, etc. if relevant to the prospect's industry). Keep it concise (4-6 sentences). End with a clear call to action."
     },
     {
       "type": "follow-up-1",
@@ -231,6 +235,7 @@ Guidelines:
 - Reference specific details from your research (company news, role requirements, etc.)
 - If connection data exists, weave it in naturally ("I noticed we both...")
 - Keep emails concise — recruiters are busy
+- In the intro email, include 1-2 BairesDev references: either public clients (Google, Salesforce, BMW, Pinterest, ViacomCBS, Rolls-Royce) or anonymized case studies from the prospect's industry (e.g. "We helped a mid-size logistics company reduce their dev hiring timeline from 3 months to 2 weeks"). Match references to the prospect's industry when possible.
 - Use the user's name in the signature if provided
 Your entire response must be only the JSON object.`;
 
@@ -256,56 +261,12 @@ ${companyList}
 
 Search for connections between this user and each company/recruiter. Return JSON with enrichments.`;
 
-  const messages = [{ role: "user", content: userMsg }];
-  const MAX_ROUNDS = 15;
-
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await fetch(`${API_URL}/api/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
-        system: SYSTEM_ENRICH,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
-    const textBlocks = data.content.filter(b => b.type === "text");
-
-    if (toolUseBlocks.length > 0) {
-      toolUseBlocks.forEach(b => {
-        if (b.name === "web_search" && b.input?.query) {
-          onSearchLog(`Cross-ref: "${b.input.query}"`);
-        }
-      });
-      messages.push({ role: "assistant", content: data.content });
-      const toolResults = toolUseBlocks.map(b => ({
-        type: "tool_result",
-        tool_use_id: b.id,
-        content: b.output ?? "Search completed."
-      }));
-      messages.push({ role: "user", content: toolResults });
-      continue;
-    }
-
-    return textBlocks.map(b => b.text).join("").trim();
-  }
-
-  throw new Error("Enrichment agent did not finish after max rounds.");
+  return runAgentLoopCore({ system: SYSTEM_ENRICH, max_tokens: 6000, userMsg, onSearchLog: q => onSearchLog(`Cross-ref: "${q}"`) });
 }
 
 async function runSequenceAgent(prospect, userLinkedin, userName) {
   const connectionInfo = prospect.connectionStatus
-    ? `Connection status: ${prospect.connectionStatus.status}\nDetails: ${prospect.connectionStatus.details || "none"}\nCompany relationship: ${prospect.companyRelationship || "unknown"}\nRecruiter relationship: ${prospect.recruiterRelationship || "unknown"}`
+    ? `Connection status: ${prospect.connectionStatus.status}\nLinkedIn connection degree: ${prospect.connectionStatus.connectionDegree || "unknown"}\nDetails: ${prospect.connectionStatus.details || "none"}\nCompany relationship: ${prospect.companyRelationship || "unknown"}\nRecruiter relationship: ${prospect.recruiterRelationship || "unknown"}`
     : "No connection data available.";
 
   const recruiterInfo = prospect.recruiter?.name
@@ -329,49 +290,10 @@ LinkedIn: ${userLinkedin || "not provided"}
 
 Research this company and recruiter, then generate the outreach sequence JSON.`;
 
-  const messages = [{ role: "user", content: userMsg }];
-  const MAX_ROUNDS = 10;
-
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await fetch(`${API_URL}/api/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
-        system: SYSTEM_SEQUENCE,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
-    const textBlocks = data.content.filter(b => b.type === "text");
-
-    if (toolUseBlocks.length > 0) {
-      messages.push({ role: "assistant", content: data.content });
-      const toolResults = toolUseBlocks.map(b => ({
-        type: "tool_result",
-        tool_use_id: b.id,
-        content: b.output ?? "Search completed."
-      }));
-      messages.push({ role: "user", content: toolResults });
-      continue;
-    }
-
-    return textBlocks.map(b => b.text).join("").trim();
-  }
-
-  throw new Error("Sequence agent did not finish after max rounds.");
+  return runAgentLoopCore({ system: SYSTEM_SEQUENCE, max_tokens: 6000, userMsg });
 }
 
-function parseProspects(raw) {
+function parseAgentJSON(raw) {
   // Strip any accidental markdown fences
   let cleaned = raw.replace(/```json|```/gi, "").trim();
   // Find the outermost JSON object
@@ -400,6 +322,47 @@ export default function DevScout() {
   const [enrichPhase, setEnrichPhase] = useState("idle");
   const [enrichProgress, setEnrichProgress] = useState(0);
   const logRef = useRef(null);
+
+  const loadDemo = () => {
+    const demoProspects = [
+      { id: "demo-1", company: "MedVault Health", industry: "Healthcare", size: 420, sizeSource: "LinkedIn", location: "Austin, TX", roles: ["Senior Backend Engineer", "DevOps Engineer"], source: "LinkedIn", posted: "2d ago", matchScore: 92, linkedinUrl: "https://linkedin.com/company/medvault", nearshoreScore: 88, nearshoreSignals: ["No existing offshore presence", "6 open dev roles unfilled 3+ weeks", "Non-tech healthcare company scaling fast"], recruiter: { name: "Sarah Chen", title: "Technical Recruiter", linkedinUrl: "https://linkedin.com/in/sarah-chen" }, connectionStatus: { status: "possible", connectionDegree: "2nd", details: "You and Sarah Chen both worked at companies in the Austin healthtech ecosystem", mutualConnections: ["David Kim - Engineering Lead at HealthStack"], sharedGroups: [] }, companyRelationship: "Shared Austin tech community", recruiterRelationship: "2nd degree via David Kim" },
+      { id: "demo-2", company: "FreightWise Logistics", industry: "Logistics", size: 680, sizeSource: "Indeed", location: "Nashville, TN", roles: ["Full Stack Developer", "React Engineer"], source: "Indeed", posted: "5d ago", matchScore: 85, linkedinUrl: "", indeedUrl: "https://indeed.com/jobs?q=freightwise", nearshoreScore: 76, nearshoreSignals: ["Mid-size logistics firm", "2 dev roles open", "No mention of offshore teams"], recruiter: { name: "Marcus Johnson", title: "Hiring Manager", linkedinUrl: "https://linkedin.com/in/marcus-johnson" } },
+      { id: "demo-3", company: "Apex Financial Group", industry: "Finance", size: 310, sizeSource: "LinkedIn", location: "Denver, CO", roles: ["Software Engineer", "Data Engineer", "Platform Engineer"], source: "Multiple", posted: "1d ago", matchScore: 95, linkedinUrl: "https://linkedin.com/company/apex-financial", ziprecruiterUrl: "https://ziprecruiter.com/c/apex-financial", nearshoreScore: 91, nearshoreSignals: ["Series C fintech, aggressive hiring", "8 engineering roles open", "High cost-of-living market with small eng team"], recruiter: { name: "Jessica Park", title: "VP of Engineering", linkedinUrl: "https://linkedin.com/in/jessica-park" } },
+    ];
+    setResults(demoProspects);
+    setPhase("done");
+    setSummary("DEMO MODE — 3 sample prospects loaded");
+    setLogs([{ text: "Demo data loaded — click a prospect and try 'Start Sequence'", done: true }]);
+    setSequences({
+      "demo-1": {
+        step: "ready", activeEmail: 0,
+        research: "MedVault Health is a Series B healthcare SaaS company based in Austin, TX with ~420 employees. They recently raised $45M and are aggressively scaling their engineering team — 6 open developer roles have been posted for 3+ weeks, suggesting difficulty hiring locally. Sarah Chen is their Technical Recruiter who joined 4 months ago, likely brought on to handle the hiring surge.\n\nLinkedIn connection: Sarah Chen is a 2nd-degree connection via David Kim (Engineering Lead at HealthStack). Both operate in the Austin healthtech ecosystem, which gives a warm intro angle — mentioning David or the shared community could increase response rate significantly.\n\nKey talking points: Their platform handles EHR integrations which require significant backend complexity. The unfilled roles and recent funding signal they'd benefit from augmented staffing. Austin's competitive tech market makes nearshore an attractive cost-effective option.",
+        emails: [
+          { type: "intro", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah,\n\nI noticed MedVault has several engineering roles open — congrats on the Series B and the growth that's driving. Scaling an eng team in Austin's market is no small feat.\n\nAt BairesDev, we help companies like MedVault extend their engineering capacity with senior nearshore developers who integrate directly into your existing workflows. We recently helped a Series B healthtech company scale their backend team by 4 engineers in 3 weeks — and our developers have deep experience with EHR integrations similar to what MedVault is building. We also work with companies like Salesforce and Google, so our talent bar is high.\n\nWould you be open to a quick 15-minute call this week to see if we might be a fit?" },
+          { type: "follow-up-1", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah,\n\nJust following up — I saw MedVault also posted a DevOps role this week, so it seems like the team is really scaling. We recently helped a similar healthcare company staff 3 senior engineers in under 2 weeks.\n\nHappy to share how that worked if it'd be useful." },
+          { type: "follow-up-2", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah — I know you're busy with all the hiring. If the timing isn't right now, no worries at all. I'll keep MedVault on my radar and reach out if I see a particularly strong fit." }
+        ]
+      },
+      "demo-2": {
+        step: "ready", activeEmail: 0,
+        research: "FreightWise Logistics is a mid-size logistics company based in Nashville, TN with ~680 employees. They are expanding their tech capabilities with 2 open developer roles — Full Stack Developer and React Engineer — posted on Indeed 5 days ago. Marcus Johnson is the Hiring Manager overseeing these roles.\n\nLinkedIn connection: No direct connection found. Marcus Johnson is a 3rd-degree connection. However, Nashville's growing tech scene and FreightWise's non-tech background suggest they may struggle to compete for local developer talent.\n\nKey talking points: Logistics companies are increasingly investing in custom software for route optimization, warehouse management, and real-time tracking. BairesDev has helped similar logistics firms like DHL and supply chain startups build React-based dashboards and full-stack platforms. The 2 open roles suggest early-stage tech team growth — a perfect entry point for nearshore augmentation.",
+        emails: [
+          { type: "intro", subject: "Scaling your dev team at FreightWise", body: "Hi Marcus,\n\nI came across the Full Stack and React Engineer roles at FreightWise — exciting to see the team investing in technology. Building out a dev team in logistics is a smart move, especially with how fast the industry is digitizing.\n\nAt BairesDev, we specialize in helping companies like FreightWise ramp up engineering capacity quickly. We recently helped a mid-size supply chain company build a real-time tracking dashboard with a team of 3 React engineers delivered in under 3 weeks. We also support enterprise logistics clients globally, so our developers understand the domain.\n\nWould you have 15 minutes this week to explore whether we could help accelerate your hiring?" },
+          { type: "follow-up-1", subject: "Re: Scaling your dev team at FreightWise", body: "Hi Marcus,\n\nJust circling back — I noticed the React Engineer role is still open, which can be tough to fill in Nashville's market. We've had strong success placing senior React developers with logistics companies who need to move fast.\n\nHappy to share a quick case study if it'd be helpful." },
+          { type: "follow-up-2", subject: "Re: Scaling your dev team at FreightWise", body: "Hi Marcus — I know hiring season is hectic. If the timing isn't right, totally understand. I'll keep FreightWise on my radar and reach out if I come across a particularly strong match for your stack." }
+        ]
+      },
+      "demo-3": {
+        step: "ready", activeEmail: 0,
+        research: "Apex Financial Group is a Series C fintech company based in Denver, CO with ~310 employees. They are aggressively hiring with 8 engineering roles open across Software Engineer, Data Engineer, and Platform Engineer positions — posted across LinkedIn and ZipRecruiter just 1 day ago. Jessica Park, VP of Engineering, is leading the hiring push.\n\nLinkedIn connection: No direct connection data available. Jessica Park is estimated as a 3rd-degree connection. However, the volume of open roles (8 positions) and the Denver market's competitive tech landscape strongly suggest Apex would benefit from augmented staffing.\n\nKey talking points: Fintech requires high-caliber engineering talent with security and compliance awareness. BairesDev works with financial services companies including partners of Salesforce Financial Services Cloud. The combination of 8 open roles, Series C funding, and a small 310-person company signals rapid scaling pain — an ideal nearshore opportunity.",
+        emails: [
+          { type: "intro", subject: "Supporting Apex Financial's engineering growth", body: "Hi Jessica,\n\nCongratulations on the Series C — and the ambitious hiring push that comes with it. 8 open engineering roles is a big lift, especially in Denver's competitive market.\n\nAt BairesDev, we help fintech companies like Apex scale their engineering teams rapidly without compromising on quality. We recently embedded a 5-person platform engineering team at a Series B payments company that was fully productive within 2 weeks. We also work with financial services teams at companies like Salesforce, so our developers understand compliance-sensitive environments.\n\nWould you be open to a brief call to discuss how we might help accelerate your engineering roadmap?" },
+          { type: "follow-up-1", subject: "Re: Supporting Apex Financial's engineering growth", body: "Hi Jessica,\n\nFollowing up — with 8 roles open across software, data, and platform engineering, I imagine the hiring pipeline is getting complex. We've helped similar fintech companies fill senior engineering gaps in as little as 10 days.\n\nHappy to share specifics if you're interested." },
+          { type: "follow-up-2", subject: "Re: Supporting Apex Financial's engineering growth", body: "Hi Jessica — I know you have a lot on your plate with the hiring surge. If now isn't the right time, no worries. I'll keep Apex on my radar and reach out when I see a strong fit for your platform or data engineering needs." }
+        ]
+      }
+    });
+  };
 
   const pushLog = useCallback((text, done = false) => {
     setLogs(prev => {
@@ -449,7 +412,7 @@ export default function DevScout() {
 
       let parsed;
       try {
-        parsed = parseProspects(raw);
+        parsed = parseAgentJSON(raw);
       } catch (parseErr) {
         // Show raw for debugging
         console.error("Raw response:", raw);
@@ -501,7 +464,7 @@ export default function DevScout() {
             }
           );
 
-          const enrichParsed = parseProspects(enrichRaw);
+          const enrichParsed = parseAgentJSON(enrichRaw);
 
           setResults(prev => prev.map(r => {
             const enrichment = (enrichParsed.enrichments || [])
@@ -532,15 +495,17 @@ export default function DevScout() {
     }
   };
 
-  const industries = ["All", ...new Set(results.map(r => r.industry).filter(Boolean))];
+  const industries = useMemo(() => ["All", ...new Set(results.map(r => r.industry).filter(Boolean))], [results]);
 
-  const filtered = results.filter(r => {
+  const filtered = useMemo(() => results.filter(r => {
     if (filters.source !== "All" && r.source !== filters.source) return false;
     if (filters.industry !== "All" && r.industry !== filters.industry) return false;
     if ((r.size || 0) < filters.minSize || (r.size || 9999) > filters.maxSize) return false;
     if ((r.matchScore || 0) < filters.minMatch) return false;
     return true;
-  }).sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+  }).sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)), [results, filters]);
+
+  const activeSequenceCount = useMemo(() => Object.values(sequences).filter(s => s.step !== "idle").length, [sequences]);
 
   const startSequence = async (prospect) => {
     const id = prospect.id;
@@ -548,7 +513,7 @@ export default function DevScout() {
     setSequences(prev => ({ ...prev, [id]: { step: "researching", research: "", emails: [], activeEmail: 0, notes: prev[id]?.notes || "" } }));
     try {
       const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl));
-      const parsed = parseProspects(raw);
+      const parsed = parseAgentJSON(raw);
       setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [] } }));
     } catch (err) {
       console.error("Sequence error:", err);
@@ -586,7 +551,7 @@ export default function DevScout() {
         </div>
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
           <span className="ds-hide-mobile" style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em" }}>INDEED · LINKEDIN · ZIPRECRUITER · BUILTIN · DICE</span>
-          {Object.values(sequences).filter(s => s.step !== "idle").length > 0 && <span style={{ fontSize: 12, fontFamily: "monospace", color: "#64748b" }}><span style={{ color: "#3b82f6", fontWeight: 700 }}>{Object.values(sequences).filter(s => s.step !== "idle").length}</span> sequenced</span>}
+          {activeSequenceCount > 0 && <span style={{ fontSize: 12, fontFamily: "monospace", color: "#64748b" }}><span style={{ color: "#3b82f6", fontWeight: 700 }}>{activeSequenceCount}</span> sequenced</span>}
           {phase === "done" && <span style={{ fontSize: 11, color: "#16a34a", fontFamily: "monospace" }}>● LIVE DATA</span>}
         </div>
       </div>
@@ -618,6 +583,13 @@ export default function DevScout() {
               ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #94a3b8", borderTopColor: "#475569", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />SCANNING...</>
               : "⚡ RUN LIVE SCAN"}
           </button>
+
+          {phase === "idle" && (
+            <button onClick={loadDemo}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "#ffffff", color: "#64748b", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
+              🧪 LOAD DEMO DATA
+            </button>
+          )}
 
           <div>
             <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
@@ -748,8 +720,14 @@ export default function DevScout() {
                           <img
                             src={`https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`}
                             alt=""
-                            style={{ width: 32, height: 32, objectFit: "contain", position: "absolute", background: lc + "18", padding: 2 }}
-                            onError={e => { e.target.style.display = "none"; }}
+                            style={{ width: 42, height: 42, objectFit: "contain", position: "absolute", background: "#fff", padding: 4, borderRadius: 9 }}
+                            onError={e => {
+                              if (!e.target.dataset.tried) {
+                                e.target.dataset.tried = "1";
+                                const words = r.company.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/);
+                                e.target.src = `https://logo.clearbit.com/${words[0]}.com`;
+                              } else { e.target.style.display = "none"; }
+                            }}
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -819,10 +797,15 @@ export default function DevScout() {
                                 borderRadius: 8, padding: "12px 16px"
                               }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                  <span style={{ width: 8, height: 8, borderRadius: "50%", display: "inline-block", background: r.connectionStatus.status === "likely" ? "#16a34a" : r.connectionStatus.status === "possible" ? "#d97706" : "#94a3b8" }} />
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2" style={{ flexShrink: 0 }}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
                                   <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textTransform: "capitalize" }}>
                                     {r.connectionStatus.status === "likely" ? "Likely Connection" : r.connectionStatus.status === "possible" ? "Possible Connection" : r.connectionStatus.status}
                                   </span>
+                                  {r.connectionStatus.connectionDegree && r.connectionStatus.connectionDegree !== "unknown" && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: r.connectionStatus.connectionDegree === "1st" ? "#dcfce7" : r.connectionStatus.connectionDegree === "2nd" ? "#fef3c7" : "#f1f5f9", color: r.connectionStatus.connectionDegree === "1st" ? "#16a34a" : r.connectionStatus.connectionDegree === "2nd" ? "#d97706" : "#64748b", fontFamily: "monospace" }}>
+                                      {r.connectionStatus.connectionDegree}
+                                    </span>
+                                  )}
                                 </div>
                                 {r.companyRelationship && r.companyRelationship !== "No known relationship" && (
                                   <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 4 }}><span style={{ fontWeight: 600, color: "#334155" }}>Company:</span> {r.companyRelationship}</div>
@@ -936,6 +919,16 @@ export default function DevScout() {
                                         <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Subject: {em.subject}</div>
                                         <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{em.body}</div>
                                         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                          <button onClick={e => {
+                                              e.stopPropagation();
+                                              const to = r.recruiter?.email || "";
+                                              const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(em.subject)}&body=${encodeURIComponent(em.body)}`;
+                                              window.open(gmailUrl, "_blank");
+                                            }}
+                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                                            <svg width="16" height="12" viewBox="0 0 48 36" fill="none"><path d="M6 0h36c3.3 0 6 2.7 6 6v24c0 3.3-2.7 6-6 6H6c-3.3 0-6-2.7-6-6V6c0-3.3 2.7-6 6-6z" fill="#F1F3F4"/><path d="M2 6l22 15L46 6" stroke="#EA4335" strokeWidth="2" fill="none"/><path d="M0 6v24c0 3.3 2.7 6 6 6h4V12L0 6z" fill="#4285F4"/><path d="M48 6v24c0 3.3-2.7 6-6 6h-4V12l10-6z" fill="#34A853"/><path d="M10 36V12L24 21 38 12v24" fill="#C5221F" opacity="0.05"/><path d="M0 6l10 6 14 9 14-9 10-6" fill="none"/><path d="M0 6l24 15L48 6" stroke="#EA4335" strokeWidth="0" fill="none"/><rect x="10" y="0" width="28" height="12" rx="0" fill="#C5221F" opacity="0.9"/><path d="M10 12L0 6c0-3.3 2.7-6 6-6h4v12z" fill="#F14336"/><path d="M38 12l10-6c0-3.3-2.7-6-6-6h-4v12z" fill="#FBBC05"/><path d="M10 12l14 9 14-9" fill="#C5221F"/></svg>
+                                            Draft in Gmail
+                                          </button>
                                           <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`Subject: ${em.subject}\n\n${em.body}`); }}
                                             style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
                                             📋 Copy Email
