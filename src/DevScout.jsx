@@ -15,67 +15,17 @@ const Tag = ({ children, color = "#64748b" }) => (
   <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 3, background: color + "18", color, border: `1px solid ${color}33`, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "monospace" }}>{children}</span>
 );
 
-const SYSTEM = `You are a developer-hiring intelligence agent. Find REAL companies that are:
-1. Currently hiring software developers or engineers (active job postings)
-2. Between 100–1000 employees in size
-3. Found on Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, or Dice
+const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers. Do 2-3 web searches, then return JSON immediately.
 
-Use web search to find actual current job postings. Search queries like:
-- "site:indeed.com software engineer"
-- "LinkedIn jobs software developer 100-500 employees"
-- "site:ziprecruiter.com software developer"
-- "site:builtin.com software engineer jobs"
-- "site:dice.com software developer"
+Rules:
+- Always return JSON even with partial data. Use best estimates for missing fields.
+- Include ANY company you find hiring developers, regardless of size or industry.
+- Do NOT explain, apologize, or refuse. Just return the JSON.
+- Your response must start with { and end with }. Nothing else.
 
-Search across ALL five job boards for the best coverage.
-
-For each company, also find the hiring manager or recruiter for the developer roles. Search for the recruiter name on the job posting itself, or search "[company name] recruiter software engineer LinkedIn". Include their LinkedIn profile URL if found.
-
-After searching, return ONLY a raw JSON object — absolutely no markdown, no code fences, no backticks, no explanation before or after. Start your response with { and end with }.
-
-Format:
-{
-  "prospects": [
-    {
-      "company": "Acme Corp",
-      "industry": "FinTech",
-      "size": 320,
-      "sizeSource": "LinkedIn",
-      "location": "Austin, TX",
-      "roles": ["Senior Backend Engineer", "DevOps Engineer"],
-      "source": "LinkedIn",
-      "posted": "2d ago",
-      "matchScore": 88,
-      "linkedinUrl": "https://linkedin.com/company/acme-corp",
-      "indeedUrl": "",
-      "ziprecruiterUrl": "",
-      "builtinUrl": "",
-      "diceUrl": "",
-      "recruiter": {
-        "name": "Jane Smith",
-        "title": "Technical Recruiter",
-        "linkedinUrl": "https://linkedin.com/in/jane-smith",
-        "email": ""
-      },
-      "nearshoreScore": 85,
-      "nearshoreSignals": ["No existing offshore presence", "Multiple open roles suggest scaling pain", "Non-tech industry likely lacks in-house recruiting pipeline"],
-      "notes": "Series B fintech, engineering hiring surge"
-    }
-  ],
-  "searchSummary": "Found X companies actively hiring developers with 100-1000 employees"
-}
-
-source: Use the board where the listing was found — "LinkedIn", "Indeed", "ZipRecruiter", "BuiltIn", "Dice", or "Multiple" if found on 2+ boards.
-matchScore: 90-100 = perfect (100-500 employees, multiple dev roles, non-tech industry, high nearshore propensity); 75-89 = strong; 60-74 = moderate.
-recruiter: The hiring manager or recruiter for the dev roles. Use empty strings if not found.
-Target non-tech industries: healthcare, finance, manufacturing, retail, logistics, insurance, education, real estate, energy.
-
-nearshoreScore: Rate 0-100 how likely this company is to use a nearshore outsourcing firm. Consider these signals:
-- HIGH (80-100): Non-tech company struggling to hire devs, multiple open roles unfilled 2+ weeks, no existing offshore/nearshore mentions, located in high cost-of-living area, scaling fast (funding round, growth stage), small eng team relative to company size
-- MEDIUM (50-79): Some dev roles open, mixed signals on existing outsourcing, mid-cost location, moderate hiring volume
-- LOW (0-49): Already has offshore teams, large existing eng org, tech-first company, mentions "in-house only" culture
-nearshoreSignals: Array of 2-3 short reasons explaining the score.
-Return 8-12 prospects. Your entire response must be only the JSON object.`;
+JSON format:
+{"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"LinkedIn|Indeed|ZipRecruiter|BuiltIn|Dice|Multiple","posted":"","matchScore":0,"linkedinUrl":"","indeedUrl":"","ziprecruiterUrl":"","builtinUrl":"","diceUrl":"","recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
+matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 6-10 prospects.`;
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AGENT_MODEL = "claude-haiku-4-5-20251001";
@@ -131,7 +81,7 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog }) {
 }
 
 async function runAgentLoop(userMsg, onSearchLog) {
-  return runAgentLoopCore({ system: SYSTEM, max_tokens: 4000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`) });
+  return runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`) });
 }
 
 const SYSTEM_ENRICH = `You are a LinkedIn connection research agent. Given a list of companies with recruiters and a user's LinkedIn profile or name, determine if the user might have connections at those companies.
@@ -214,28 +164,28 @@ Return ONLY a raw JSON object — no markdown, no code fences:
   "emails": [
     {
       "type": "intro",
-      "subject": "Short, personalized subject line",
-      "body": "The intro email body. Reference specific details about the company/role. If there's a connection (shared employer, school, group), mention it naturally. Include 1-2 relevant BairesDev client references or public case studies from a similar industry to build credibility (e.g. 'We helped a Series B healthtech company scale their backend team by 4 engineers in 3 weeks' or reference known BairesDev clients like Google, Salesforce, BMW, Pinterest, etc. if relevant to the prospect's industry). Keep it concise (4-6 sentences). End with a clear call to action."
+      "subject": "Short, specific subject referencing their situation — not generic",
+      "body": "STRICT RULES FOR INTRO EMAIL: Max 3 short paragraphs, 75 words or fewer total. Structure: (1) Hook: One sentence showing you did homework — reference a specific signal like open roles, funding, growth, or tech stack. (2) Value: Mention BairesDev by name naturally (e.g. 'We at BairesDev just helped...' or 'BairesDev recently...'). Lead with a specific case study or outcome relevant to their industry. No award lists, no credential dumps, no company description. (3) CTA: One direct, low-friction ask. Confident, not apologetic. AVOID: 'might be a fit', 'just wanted to', 'I wanted to reach out', listing awards in body, vague social proof, passive/hedging language. REQUIRED: The word 'BairesDev' MUST appear in the email body. Write like a human, not a press release."
     },
     {
       "type": "follow-up-1",
       "subject": "Re: [original subject]",
-      "body": "Follow-up after 3 days of no response. Add new value — mention a specific insight about their hiring needs or company. 2-3 sentences."
+      "body": "Follow-up after 3 days. Add new value — a different case study or specific insight about their hiring challenge. 2-3 sentences max. No rehashing the first email."
     },
     {
       "type": "follow-up-2",
       "subject": "Re: [original subject]",
-      "body": "Final follow-up after 7 days. Brief breakup email — acknowledge they're busy, leave the door open. 2 sentences max."
+      "body": "Final follow-up after 7 days. Brief breakup — one sentence acknowledging they're busy, one leaving the door open. No guilt, no pressure."
     }
   ]
 }
 
 Guidelines:
-- Be professional but warm, not salesy or generic
-- Reference specific details from your research (company news, role requirements, etc.)
-- If connection data exists, weave it in naturally ("I noticed we both...")
-- Keep emails concise — recruiters are busy
-- In the intro email, include 1-2 BairesDev references: either public clients (Google, Salesforce, BMW, Pinterest, ViacomCBS, Rolls-Royce) or anonymized case studies from the prospect's industry (e.g. "We helped a mid-size logistics company reduce their dev hiring timeline from 3 months to 2 weeks"). Match references to the prospect's industry when possible.
+- Write like an expert B2B sales copywriter, not a marketer
+- Every sentence must earn its place — cut anything that doesn't move toward a reply
+- Lead with outcomes and specifics, never with company descriptions
+- REQUIRED: Always mention "BairesDev" by name in the intro email body — weave it into the case study naturally (e.g. "We at BairesDev helped..." or "BairesDev recently embedded..."). Credentials (Inc. 5000, IAOP Top 100, client names) go in the SIGNATURE only, not the body
+- If connection data exists, weave it into the hook naturally
 - Use the user's name in the signature if provided
 Your entire response must be only the JSON object.`;
 
@@ -317,8 +267,8 @@ export default function DevScout() {
   const [scanMinSize, setScanMinSize] = useState(100);
   const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 10000 : 1000);
   const [errorMsg, setErrorMsg] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
-  const [userName, setUserName] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState(() => localStorage.getItem("ds_linkedin") || "");
+  const [userName, setUserName] = useState(() => localStorage.getItem("ds_username") || "");
   const [enrichPhase, setEnrichPhase] = useState("idle");
   const [enrichProgress, setEnrichProgress] = useState(0);
   const logRef = useRef(null);
@@ -333,35 +283,7 @@ export default function DevScout() {
     setPhase("done");
     setSummary("DEMO MODE — 3 sample prospects loaded");
     setLogs([{ text: "Demo data loaded — click a prospect and try 'Start Sequence'", done: true }]);
-    setSequences({
-      "demo-1": {
-        step: "ready", activeEmail: 0,
-        research: "MedVault Health is a Series B healthcare SaaS company based in Austin, TX with ~420 employees. They recently raised $45M and are aggressively scaling their engineering team — 6 open developer roles have been posted for 3+ weeks, suggesting difficulty hiring locally. Sarah Chen is their Technical Recruiter who joined 4 months ago, likely brought on to handle the hiring surge.\n\nLinkedIn connection: Sarah Chen is a 2nd-degree connection via David Kim (Engineering Lead at HealthStack). Both operate in the Austin healthtech ecosystem, which gives a warm intro angle — mentioning David or the shared community could increase response rate significantly.\n\nKey talking points: Their platform handles EHR integrations which require significant backend complexity. The unfilled roles and recent funding signal they'd benefit from augmented staffing. Austin's competitive tech market makes nearshore an attractive cost-effective option.",
-        emails: [
-          { type: "intro", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah,\n\nI noticed MedVault has several engineering roles open — congrats on the Series B and the growth that's driving. Scaling an eng team in Austin's market is no small feat.\n\nAt BairesDev, we help companies like MedVault extend their engineering capacity with senior nearshore developers who integrate directly into your existing workflows. We recently helped a Series B healthtech company scale their backend team by 4 engineers in 3 weeks — and our developers have deep experience with EHR integrations similar to what MedVault is building. We also work with companies like Salesforce and Google, so our talent bar is high.\n\nWould you be open to a quick 15-minute call this week to see if we might be a fit?" },
-          { type: "follow-up-1", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah,\n\nJust following up — I saw MedVault also posted a DevOps role this week, so it seems like the team is really scaling. We recently helped a similar healthcare company staff 3 senior engineers in under 2 weeks.\n\nHappy to share how that worked if it'd be useful." },
-          { type: "follow-up-2", subject: "Re: your Backend Engineer search at MedVault", body: "Hi Sarah — I know you're busy with all the hiring. If the timing isn't right now, no worries at all. I'll keep MedVault on my radar and reach out if I see a particularly strong fit." }
-        ]
-      },
-      "demo-2": {
-        step: "ready", activeEmail: 0,
-        research: "FreightWise Logistics is a mid-size logistics company based in Nashville, TN with ~680 employees. They are expanding their tech capabilities with 2 open developer roles — Full Stack Developer and React Engineer — posted on Indeed 5 days ago. Marcus Johnson is the Hiring Manager overseeing these roles.\n\nLinkedIn connection: No direct connection found. Marcus Johnson is a 3rd-degree connection. However, Nashville's growing tech scene and FreightWise's non-tech background suggest they may struggle to compete for local developer talent.\n\nKey talking points: Logistics companies are increasingly investing in custom software for route optimization, warehouse management, and real-time tracking. BairesDev has helped similar logistics firms like DHL and supply chain startups build React-based dashboards and full-stack platforms. The 2 open roles suggest early-stage tech team growth — a perfect entry point for nearshore augmentation.",
-        emails: [
-          { type: "intro", subject: "Scaling your dev team at FreightWise", body: "Hi Marcus,\n\nI came across the Full Stack and React Engineer roles at FreightWise — exciting to see the team investing in technology. Building out a dev team in logistics is a smart move, especially with how fast the industry is digitizing.\n\nAt BairesDev, we specialize in helping companies like FreightWise ramp up engineering capacity quickly. We recently helped a mid-size supply chain company build a real-time tracking dashboard with a team of 3 React engineers delivered in under 3 weeks. We also support enterprise logistics clients globally, so our developers understand the domain.\n\nWould you have 15 minutes this week to explore whether we could help accelerate your hiring?" },
-          { type: "follow-up-1", subject: "Re: Scaling your dev team at FreightWise", body: "Hi Marcus,\n\nJust circling back — I noticed the React Engineer role is still open, which can be tough to fill in Nashville's market. We've had strong success placing senior React developers with logistics companies who need to move fast.\n\nHappy to share a quick case study if it'd be helpful." },
-          { type: "follow-up-2", subject: "Re: Scaling your dev team at FreightWise", body: "Hi Marcus — I know hiring season is hectic. If the timing isn't right, totally understand. I'll keep FreightWise on my radar and reach out if I come across a particularly strong match for your stack." }
-        ]
-      },
-      "demo-3": {
-        step: "ready", activeEmail: 0,
-        research: "Apex Financial Group is a Series C fintech company based in Denver, CO with ~310 employees. They are aggressively hiring with 8 engineering roles open across Software Engineer, Data Engineer, and Platform Engineer positions — posted across LinkedIn and ZipRecruiter just 1 day ago. Jessica Park, VP of Engineering, is leading the hiring push.\n\nLinkedIn connection: No direct connection data available. Jessica Park is estimated as a 3rd-degree connection. However, the volume of open roles (8 positions) and the Denver market's competitive tech landscape strongly suggest Apex would benefit from augmented staffing.\n\nKey talking points: Fintech requires high-caliber engineering talent with security and compliance awareness. BairesDev works with financial services companies including partners of Salesforce Financial Services Cloud. The combination of 8 open roles, Series C funding, and a small 310-person company signals rapid scaling pain — an ideal nearshore opportunity.",
-        emails: [
-          { type: "intro", subject: "Supporting Apex Financial's engineering growth", body: "Hi Jessica,\n\nCongratulations on the Series C — and the ambitious hiring push that comes with it. 8 open engineering roles is a big lift, especially in Denver's competitive market.\n\nAt BairesDev, we help fintech companies like Apex scale their engineering teams rapidly without compromising on quality. We recently embedded a 5-person platform engineering team at a Series B payments company that was fully productive within 2 weeks. We also work with financial services teams at companies like Salesforce, so our developers understand compliance-sensitive environments.\n\nWould you be open to a brief call to discuss how we might help accelerate your engineering roadmap?" },
-          { type: "follow-up-1", subject: "Re: Supporting Apex Financial's engineering growth", body: "Hi Jessica,\n\nFollowing up — with 8 roles open across software, data, and platform engineering, I imagine the hiring pipeline is getting complex. We've helped similar fintech companies fill senior engineering gaps in as little as 10 days.\n\nHappy to share specifics if you're interested." },
-          { type: "follow-up-2", subject: "Re: Supporting Apex Financial's engineering growth", body: "Hi Jessica — I know you have a lot on your plate with the hiring surge. If now isn't the right time, no worries. I'll keep Apex on my radar and reach out when I see a strong fit for your platform or data engineering needs." }
-        ]
-      }
-    });
+    setSequences({});
   };
 
   const pushLog = useCallback((text, done = false) => {
@@ -488,8 +410,12 @@ export default function DevScout() {
     } catch (err) {
       clearInterval(rampTimer);
       console.error(err);
-      setErrorMsg(err.message);
-      pushLog("Error: " + err.message, true);
+      const friendly = err.message.includes("rate limit") ? "Rate limit reached — please wait 1 minute before scanning again."
+        : err.message.includes("credit balance") ? "API credits depleted — please add credits at console.anthropic.com."
+        : err.message.includes("Could not parse JSON") ? "Scan returned unexpected format — try again or use a more specific focus query."
+        : err.message;
+      setErrorMsg(friendly);
+      pushLog("Error: " + friendly, true);
       finalizeLog();
       setPhase("error");
     }
@@ -560,10 +486,10 @@ export default function DevScout() {
 
           <div>
             <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.1em", marginBottom: 7 }}>YOUR LINKEDIN</div>
-            <input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}
+            <input value={linkedinUrl} onChange={e => { setLinkedinUrl(e.target.value); localStorage.setItem("ds_linkedin", e.target.value); }}
               placeholder="https://linkedin.com/in/your-profile"
               style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box" }} />
-            <input value={userName} onChange={e => setUserName(e.target.value)}
+            <input value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem("ds_username", e.target.value); }}
               placeholder="Your full name (optional)"
               style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box", marginTop: 6 }} />
             <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginTop: 4 }}>Enables recruiter cross-referencing</div>
@@ -624,33 +550,6 @@ export default function DevScout() {
             </div>
           )}
 
-          {results.length > 0 && (
-            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 18 }}>
-              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.1em", marginBottom: 14 }}>FILTERS</div>
-              {[{ label: "SOURCE", key: "source", opts: ["All", "LinkedIn", "Indeed", "ZipRecruiter", "BuiltIn", "Dice", "Multiple"] }, { label: "INDUSTRY", key: "industry", opts: industries }].map(({ label, key, opts }) => (
-                <div key={key} style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 6 }}>{label}</div>
-                  <select value={filters[key]} onChange={e => setFilters(f => ({ ...f, [key]: e.target.value }))}
-                    style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 5, color: "#334155", padding: "7px 9px", fontSize: 11, fontFamily: "monospace", appearance: "none" }}>
-                    {opts.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-              ))}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span>HEADCOUNT</span><span style={{ color: "#3b82f6" }}>{filters.minSize}–{filters.maxSize}</span>
-                </div>
-                <input type="range" min={100} max={5000} value={filters.minSize} onChange={e => setFilters(f => ({ ...f, minSize: +e.target.value }))} style={{ width: "100%", accentColor: "#3b82f6" }} />
-                <input type="range" min={500} max={10000} value={filters.maxSize} onChange={e => setFilters(f => ({ ...f, maxSize: +e.target.value }))} style={{ width: "100%", accentColor: "#6366f1" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span>MIN MATCH</span><span style={{ color: "#16a34a" }}>{filters.minMatch}%</span>
-                </div>
-                <input type="range" min={0} max={90} step={5} value={filters.minMatch} onChange={e => setFilters(f => ({ ...f, minMatch: +e.target.value }))} style={{ width: "100%", accentColor: "#16a34a" }} />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Main panel */}
@@ -685,9 +584,7 @@ export default function DevScout() {
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                 <div>
-                  <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{filtered.length}</span>
-                  <span style={{ fontSize: 13, color: "#64748b", marginLeft: 8 }}>prospects{results.length !== filtered.length ? ` (${results.length} total)` : ""} · sorted by match</span>
-                  {summary && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>{summary}</div>}
+                  {summary && <div style={{ fontSize: 12, color: "#94a3b8" }}>{summary}</div>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>↓ Export CSV</button>
@@ -732,7 +629,7 @@ export default function DevScout() {
                           </div>
                           <div style={{ display: "flex", gap: 14, fontSize: 12, color: "#64748b", flexWrap: "wrap" }}>
                             {r.location && <span>📍 {r.location}</span>}
-                            {r.industry && <span>🏢 {r.industry}</span>}
+                            {r.industry && <span>{({ Healthcare: "⚕️", Finance: "💲", FinTech: "💳", Manufacturing: "🏭", Retail: "🛒", Logistics: "🚚", Insurance: "🛡️", Education: "🎓", "Real Estate": "🏠", Energy: "⚡", Publishing: "📚", "Food Production": "🌾", Weather: "🌤️", "Professional Services": "💼", Aerospace: "✈️", Automotive: "🚗", Media: "📺", Telecom: "📡", "Waste Management": "♻️", Agriculture: "🌱" }[r.industry] || "🏢")} {r.industry}</span>}
                             {r.size && <span style={{ fontFamily: "monospace", color: "#3b82f6" }}>{r.size.toLocaleString()} employees{r.sizeSource ? <span style={{ color: "#93c5fd", fontSize: 10 }}> via {r.sizeSource}</span> : ""}</span>}
                           </div>
                         </div>
@@ -750,6 +647,13 @@ export default function DevScout() {
                         {sequences[r.id]?.step === "sent" && <span style={{ fontSize: 10, fontWeight: 600, color: "#3b82f6", fontFamily: "monospace", padding: "3px 8px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4 }}>SENT</span>}
                         {sequences[r.id]?.step === "replied" && <span style={{ fontSize: 10, fontWeight: 600, color: "#7c3aed", fontFamily: "monospace", padding: "3px 8px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 4 }}>REPLIED</span>}
                         {sequences[r.id]?.step === "researching" && <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #cbd5e1", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />}
+                        <button onClick={e => { e.stopPropagation(); setResults(prev => prev.filter(p => p.id !== r.id)); setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; }); if (selected?.id === r.id) setSelected(null); }}
+                          title="Remove prospect"
+                          style={{ padding: 4, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", color: "#cbd5e1", display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                          onMouseLeave={e => e.currentTarget.style.color = "#cbd5e1"}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                        </button>
                       </div>
 
                       {isOpen && (
