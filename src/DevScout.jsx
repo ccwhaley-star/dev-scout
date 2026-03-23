@@ -32,6 +32,7 @@ const SYSTEM = `You search job boards and return results as JSON. Search for com
 Rules:
 - Always return JSON even with partial data. Use best estimates for missing fields.
 - Include ANY company you find hiring developers, regardless of size or industry.
+- REQUIRED: Every prospect MUST include a recruiter or hiring manager name. Search for the recruiter/hiring contact on LinkedIn or the job posting. If you cannot find any contact name for a company, do NOT include that prospect.
 - Do NOT explain, apologize, or refuse. Just return the JSON.
 - Your response must start with { and end with }. Nothing else.
 
@@ -397,12 +398,14 @@ export default function DevScout() {
         throw new Error(`Could not parse JSON. Raw: ${raw.slice(0, 200)}`);
       }
 
-      const newProspects = (parsed.prospects || []).map(p => {
-        const ms = p.matchScore || 0;
-        const ns = p.nearshoreScore || 0;
-        const combined = Math.round((ms + ns) / 2);
-        return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns };
-      });
+      const newProspects = (parsed.prospects || [])
+        .filter(p => p.recruiter?.name) // Skip prospects with no contact
+        .map(p => {
+          const ms = p.matchScore || 0;
+          const ns = p.nearshoreScore || 0;
+          const combined = Math.round((ms + ns) / 2);
+          return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns };
+        });
 
       // Merge with existing results, deduplicating by company name (case-insensitive)
       setResults(prev => {
