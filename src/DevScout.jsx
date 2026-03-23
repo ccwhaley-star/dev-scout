@@ -483,9 +483,11 @@ export default function DevScout() {
         throw new Error(`Could not parse JSON. Raw: ${raw.slice(0, 200)}`);
       }
 
-      const newProspects = (parsed.prospects || [])
-        .filter(p => p.recruiter?.name) // Skip prospects with no contact
-        .map(p => {
+      const allProspects = parsed.prospects || [];
+      const withContact = allProspects.filter(p => p.recruiter?.name);
+      console.log(`Parsed ${allProspects.length} prospects, ${withContact.length} have contacts:`,
+        allProspects.map(p => `${p.company}: recruiter=${p.recruiter?.name || "NONE"}`));
+      const newProspects = withContact.map(p => {
           const ms = p.matchScore || 0;
           const ns = p.nearshoreScore || 0;
           const combined = Math.round((ms + ns) / 2);
