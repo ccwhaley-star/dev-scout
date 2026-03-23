@@ -38,9 +38,9 @@ Rules:
 - Do NOT explain, apologize, or refuse. Just return the JSON.
 - Your ENTIRE response must be a single JSON object. Start with { and end with }. No text before or after.
 
-JSON format:
-{"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"LinkedIn|Indeed|ZipRecruiter|BuiltIn|Dice|Multiple","posted":"","matchScore":0,"linkedinUrl":"","indeedUrl":"","ziprecruiterUrl":"","builtinUrl":"","diceUrl":"","recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
-matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 5-8 prospects. Keep notes brief (under 20 words each).`;
+JSON format (omit any field that is empty or unknown):
+{"prospects":[{"company":"","industry":"","size":0,"location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
+matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 4-6 prospects maximum. Keep notes under 10 words. Omit empty URL fields entirely — only include URLs you actually found.`;
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AGENT_MODEL = "claude-haiku-4-5-20251001";
@@ -136,7 +136,7 @@ async function runAgentLoop(userMsg, onSearchLog, signal) {
   if (raw) {
     try {
       const retry = await runAgentLoopCore({
-        system: `Convert the following research into a JSON object. Return ONLY valid JSON, nothing else. Use this exact format: {"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}`,
+        system: `Convert the following research into a JSON object. Return ONLY valid JSON, nothing else. Omit empty fields. Use this format: {"prospects":[{"company":"","industry":"","size":0,"location":"","roles":[],"source":"","matchScore":0,"recruiter":{"name":"","title":"","email":""},"nearshoreScore":0}],"searchSummary":""}`,
         max_tokens: 8000,
         userMsg: raw.slice(0, 3000),
         signal,
@@ -518,8 +518,10 @@ export default function DevScout() {
       setPhase("done");
 
       // Phase 2: LinkedIn cross-reference (only if user provided LinkedIn info)
+      // Wait 60s to avoid rate limits after scan
       const resolvedName = userName || extractNameFromLinkedIn(linkedinUrl);
       if (linkedinUrl || resolvedName) {
+        await new Promise(r => setTimeout(r, 60000));
         setEnrichPhase("enriching");
         setEnrichProgress(10);
         pushLog("Starting LinkedIn cross-reference...");
