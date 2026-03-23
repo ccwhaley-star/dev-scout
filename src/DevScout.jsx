@@ -39,7 +39,7 @@ Rules:
 
 JSON format:
 {"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"LinkedIn|Indeed|ZipRecruiter|BuiltIn|Dice|Multiple","posted":"","matchScore":0,"linkedinUrl":"","indeedUrl":"","ziprecruiterUrl":"","builtinUrl":"","diceUrl":"","recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
-matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 6-10 prospects.`;
+matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 5-8 prospects. Keep notes brief (under 20 words each).`;
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AGENT_MODEL = "claude-haiku-4-5-20251001";
@@ -109,13 +109,17 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
 
 function looksLikeJSON(str) {
   const cleaned = (str || "").replace(/```json|```/gi, "").trim();
-  return cleaned.startsWith("{") && cleaned.includes("prospects");
+  if (!cleaned.startsWith("{")) return false;
+  // Check it has prospects and is parseable (or at least close)
+  if (!cleaned.includes('"prospects"')) return false;
+  // Check it ends properly (not truncated)
+  return cleaned.endsWith("}");
 }
 
 async function runAgentLoop(userMsg, onSearchLog, signal) {
   let raw;
   try {
-    raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+    raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 8000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
   } catch (err) {
     if (err.name === "AbortError") throw err;
     console.warn("First pass failed:", err.message);
@@ -132,7 +136,7 @@ async function runAgentLoop(userMsg, onSearchLog, signal) {
     try {
       const retry = await runAgentLoopCore({
         system: `Convert the following research into a JSON object. Return ONLY valid JSON, nothing else. Use this exact format: {"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}`,
-        max_tokens: 3000,
+        max_tokens: 8000,
         userMsg: raw.slice(0, 3000),
         signal,
         noTools: true
@@ -148,7 +152,7 @@ async function runAgentLoop(userMsg, onSearchLog, signal) {
   if (onSearchLog) onSearchLog("Retrying scan...");
   const lastTry = await runAgentLoopCore({
     system: `Search for companies hiring developers. Do 1 web search, then IMMEDIATELY return JSON. Your response must be ONLY a JSON object: {"prospects":[...],"searchSummary":""}. Each prospect needs: company, industry, size, location, roles array, source, matchScore, recruiter (with name and title). No text outside the JSON.`,
-    max_tokens: 3000,
+    max_tokens: 8000,
     userMsg,
     onSearchLog: q => onSearchLog(`Searching: "${q}"`),
     signal
@@ -323,9 +327,31 @@ function parseAgentJSON(raw) {
   // Find the outermost JSON object
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("No JSON object found in response");
-  cleaned = cleaned.slice(start, end + 1);
-  return JSON.parse(cleaned);
+  if (start === -1) throw new Error("No JSON object found in response");
+
+  if (end > start) {
+    cleaned = cleaned.slice(start, end + 1);
+  } else {
+    // Truncated — try to salvage
+    cleaned = cleaned.slice(start);
+  }
+
+  // Try parsing as-is first
+  try { return JSON.parse(cleaned); } catch (e) { /* fall through to repair */ }
+
+  // Repair truncated JSON: find last complete prospect object
+  const lastCompleteObj = cleaned.lastIndexOf("}");
+  if (lastCompleteObj > 0) {
+    // Try closing the array and outer object
+    const repaired = cleaned.slice(0, lastCompleteObj + 1) + '],"searchSummary":""}';
+    try { return JSON.parse(repaired); } catch (e2) { /* try next repair */ }
+
+    // Try just closing with ]}
+    const repaired2 = cleaned.slice(0, lastCompleteObj + 1) + ']}';
+    try { return JSON.parse(repaired2); } catch (e3) { /* give up */ }
+  }
+
+  throw new Error("Could not parse JSON. Raw: " + raw.slice(0, 200));
 }
 
 const DEMO_SEQUENCES = {
