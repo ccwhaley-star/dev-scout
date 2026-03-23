@@ -107,34 +107,54 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
   throw new Error("Agent did not produce a final response after max rounds.");
 }
 
+function looksLikeJSON(str) {
+  const cleaned = (str || "").replace(/```json|```/gi, "").trim();
+  return cleaned.startsWith("{") && cleaned.includes("prospects");
+}
+
 async function runAgentLoop(userMsg, onSearchLog, signal) {
   let raw;
   try {
     raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
   } catch (err) {
     if (err.name === "AbortError") throw err;
-    // If max rounds or other error, raw stays undefined — fall through to retry
     console.warn("First pass failed:", err.message);
     raw = "";
   }
 
-  // If response isn't JSON, retry once with no tools — just convert to JSON
-  const trimmed = (raw || "").replace(/```json|```/gi, "").trim();
-  if (!trimmed.startsWith("{")) {
-    if (onSearchLog) onSearchLog("Converting results to JSON...");
-    const retryMsg = raw
-      ? `You just researched companies hiring developers. Here is what you found:\n\n${raw.slice(0, 2000)}\n\nNow convert your findings into the required JSON format. Return ONLY the JSON object starting with { and ending with }.`
-      : userMsg + "\n\nIMPORTANT: Return ONLY a JSON object. Do 1-2 quick searches then return JSON immediately.";
-    const retry = await runAgentLoopCore({
-      system: "You MUST respond with ONLY a JSON object. No text, no explanation. Start with { and end with }. Follow the JSON format from the user message exactly.",
-      max_tokens: 3000,
-      userMsg: retryMsg,
-      signal,
-      noTools: !raw // Only give tools if we have nothing to convert
-    });
-    return retry;
+  console.log("Scan raw response:", raw?.slice(0, 500));
+
+  if (looksLikeJSON(raw)) return raw;
+
+  // Retry: convert accumulated text to JSON (no tools, no searching)
+  if (onSearchLog) onSearchLog("Converting results to JSON...");
+  if (raw) {
+    try {
+      const retry = await runAgentLoopCore({
+        system: `Convert the following research into a JSON object. Return ONLY valid JSON, nothing else. Use this exact format: {"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}`,
+        max_tokens: 3000,
+        userMsg: raw.slice(0, 3000),
+        signal,
+        noTools: true
+      });
+      console.log("Retry response:", retry?.slice(0, 500));
+      if (looksLikeJSON(retry)) return retry;
+    } catch (retryErr) {
+      console.warn("Retry failed:", retryErr.message);
+    }
   }
-  return raw;
+
+  // Last resort: fresh scan with very aggressive JSON-only prompt
+  if (onSearchLog) onSearchLog("Retrying scan...");
+  const lastTry = await runAgentLoopCore({
+    system: `Search for companies hiring developers. Do 1 web search, then IMMEDIATELY return JSON. Your response must be ONLY a JSON object: {"prospects":[...],"searchSummary":""}. Each prospect needs: company, industry, size, location, roles array, source, matchScore, recruiter (with name and title). No text outside the JSON.`,
+    max_tokens: 3000,
+    userMsg,
+    onSearchLog: q => onSearchLog(`Searching: "${q}"`),
+    signal
+  });
+  console.log("Last resort response:", lastTry?.slice(0, 500));
+  return lastTry;
 }
 
 const SYSTEM_ENRICH = `You are a LinkedIn connection research agent. Given a list of companies with recruiters and a user's LinkedIn profile or name, determine if the user might have connections at those companies.
