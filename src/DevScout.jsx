@@ -596,7 +596,11 @@ export default function DevScout() {
       setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [], refreshCount: prev[id]?.refreshCount || 0 } }));
     } catch (err) {
       console.error("Sequence error:", err);
-      setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "idle" } }));
+      const friendly = err.message.includes("rate limit") ? "Rate limit — wait 1 minute and try again."
+        : err.message.includes("credit balance") ? "API credits depleted."
+        : err.message.includes("Failed to fetch") ? "Backend not running — start the server with 'node server.js'."
+        : "Sequence failed: " + err.message.slice(0, 100);
+      setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "error", error: friendly } }));
     }
   };
 
@@ -823,7 +827,7 @@ export default function DevScout() {
                             </div>
                             );
                           })()}
-                          {(!seq || seqStep === "idle") && (
+                          {(!seq || seqStep === "idle" || seqStep === "error") && (
                             <div style={{ marginTop: 14 }}>
                               <button onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
                                 style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
@@ -921,6 +925,17 @@ export default function DevScout() {
                               <button disabled style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#94a3b8", fontSize: 12, cursor: "not-allowed", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #cbd5e1", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Preparing...
                               </button>
+                            )}
+                            {seqStep === "error" && (
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#dc2626", fontFamily: "monospace", flex: 1 }}>
+                                  ⚠ {seq.error}
+                                </div>
+                                <button onClick={e => { e.stopPropagation(); startSequence(r); }}
+                                  style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600, whiteSpace: "nowrap" }}>
+                                  ↻ Retry
+                                </button>
+                              </div>
                             )}
                           </div>
 
