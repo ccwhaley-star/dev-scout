@@ -33,7 +33,7 @@ Rules:
 - After 2-3 searches, STOP searching and return the JSON immediately. Do not search more.
 - Always return JSON even with partial data. Use best estimates for missing fields.
 - Include ANY company you find hiring developers, regardless of size or industry.
-- REQUIRED: Every prospect MUST include a recruiter or hiring manager name. Search for the recruiter/hiring contact on LinkedIn or the job posting. If you cannot find any contact name for a company, do NOT include that prospect.
+- REQUIRED: Every prospect MUST include a recruiter or hiring manager name. First check the job posting for a contact. If none is listed, search LinkedIn for a talent acquisition, recruiter, or HR contact at that company (e.g. "[company name] recruiter LinkedIn" or "[company name] talent acquisition"). Use the most relevant person you find. If you still cannot find any contact name for a company, do NOT include that prospect.
 - Do NOT explain, apologize, or refuse. Just return the JSON.
 - Your ENTIRE response must be a single JSON object. Start with { and end with }. No text before or after.
 
