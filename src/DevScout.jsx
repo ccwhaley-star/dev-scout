@@ -24,7 +24,7 @@ const MatchBar = ({ value }) => (
 );
 
 const Tag = ({ children, color = "#64748b" }) => (
-  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 3, background: color + "18", color, border: `1px solid ${color}33`, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "monospace" }}>{children}</span>
+  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: color + "18", color, border: `1px solid ${color}33`, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "monospace" }}>{children}</span>
 );
 
 const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers. Do 2-3 web searches, then return JSON immediately.
@@ -269,6 +269,36 @@ function parseAgentJSON(raw) {
   return JSON.parse(cleaned);
 }
 
+const DEMO_SEQUENCES = {
+  "demo-1": {
+    step: "ready", activeEmail: 0, notes: "",
+    research: "MedVault Health is a fast-growing healthtech company in Austin, TX with 420 employees. They have 6 open developer roles that have been unfilled for 3+ weeks, signaling hiring urgency. Sarah Chen, their Technical Recruiter, is a 2nd-degree LinkedIn connection via David Kim (Engineering Lead at HealthStack). MedVault has no existing offshore or nearshore partnerships, making them an ideal prospect for BairesDev's healthcare vertical expertise.",
+    emails: [
+      { type: "intro", subject: "Your 6 unfilled dev roles at MedVault", body: "Sarah — I noticed MedVault has had Senior Backend and DevOps roles open for 3+ weeks. In healthtech, that kind of delay can stall product timelines fast.\n\nWe at BairesDev just helped a Series B healthtech company staff 4 senior engineers in under 3 weeks — all HIPAA-experienced, all retained past 12 months.\n\nWorth a 15-minute call this week to see if we can help clear your backlog?" },
+      { type: "follow-up-1", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — quick follow-up. A mid-size EHR platform we work with cut their time-to-hire from 8 weeks to 12 days using our pre-vetted nearshore engineers.\n\nHappy to share specifics if useful." },
+      { type: "follow-up-2", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — I know things move fast in healthtech recruiting. No worries if the timing isn't right.\n\nIf those roles are still open down the road, I'm here. Happy to help whenever it makes sense." }
+    ]
+  },
+  "demo-2": {
+    step: "ready", activeEmail: 0, notes: "",
+    research: "FreightWise Logistics is a mid-size logistics company in Nashville, TN with 680 employees. They're hiring Full Stack Developers and React Engineers, suggesting a digital transformation or platform build. Marcus Johnson is the Hiring Manager. No existing offshore teams detected, and their Nashville location means high cost-of-living talent competition. BairesDev's logistics experience with route optimization and supply chain platforms is directly relevant.",
+    emails: [
+      { type: "intro", subject: "Scaling your dev team at FreightWise", body: "Marcus — saw FreightWise is hiring Full Stack and React engineers in Nashville. Competing for that talent against healthcare and fintech in the same market is tough.\n\nBairesDev recently helped a $200M logistics company build out their real-time tracking platform with 3 senior React devs — deployed in under 2 weeks, still on the team 8 months later.\n\nOpen to a quick call to see if we could help accelerate your hiring?" },
+      { type: "follow-up-1", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — one more data point. A freight management company we work with saved ~40% on engineering costs by augmenting with our nearshore team, without sacrificing code quality or velocity.\n\nHappy to walk through how they structured it." },
+      { type: "follow-up-2", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — totally understand if this isn't a priority right now.\n\nIf those roles are still open later or if you need to scale quickly, feel free to reach out anytime." }
+    ]
+  },
+  "demo-3": {
+    step: "ready", activeEmail: 0, notes: "",
+    research: "Apex Financial Group is a Series C fintech in Denver, CO with 310 employees and 8 open engineering roles — signaling aggressive growth. Jessica Park, VP of Engineering, is leading the hiring push. With a small eng team in a high cost-of-living market, they're likely struggling to compete for local talent. BairesDev's fintech expertise (SOC 2 compliant teams, PCI-DSS experience) and track record with similar-stage companies make this a strong fit.",
+    emails: [
+      { type: "intro", subject: "8 open eng roles at Apex — let's fix that", body: "Jessica — 8 engineering roles open at a 310-person fintech is a big lift, especially in Denver's market right now.\n\nBairesDev helped a Series B payments company staff 5 senior engineers in 10 days — all with SOC 2 and PCI-DSS experience. They shipped their compliance milestone 3 weeks early.\n\nWorth 15 minutes to see if we can help Apex move faster?" },
+      { type: "follow-up-1", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — another fintech we work with (similar stage to Apex) cut their engineering costs by 35% while doubling their deployment frequency with our nearshore team.\n\nHappy to share the playbook if it's useful." },
+      { type: "follow-up-2", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — I know scaling engineering at a Series C pace is intense. No pressure at all.\n\nIf those roles are still open or you need to ramp quickly, I'm a message away." }
+    ]
+  }
+};
+
 export default function DevScout() {
   const [phase, setPhase] = useState("idle"); // idle | scanning | done | error
   const [logs, setLogs] = useState([]);
@@ -277,52 +307,25 @@ export default function DevScout() {
   const [summary, setSummary] = useState("");
   const [selected, setSelected] = useState(null);
   const [sequences, setSequences] = useState({});
-  const [filters, setFilters] = useState({ source: "All", industry: "All", minSize: 100, maxSize: 10000, minMatch: 0 });
+  // Filters are static defaults for now — ready to wire up filter UI later
+  const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 10000, minMatch: 0 }), []);
   const [customQuery, setCustomQuery] = useState("");
-  const [scanMinSize, setScanMinSize] = useState(100);
+  const scanMinSize = 100;
   const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 10000 : 1000);
   const [errorMsg, setErrorMsg] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState(() => localStorage.getItem("ds_linkedin") || "");
   const [userName, setUserName] = useState(() => localStorage.getItem("ds_username") || "");
   const [enrichPhase, setEnrichPhase] = useState("idle");
   const [enrichProgress, setEnrichProgress] = useState(0);
+  const [copiedId, setCopiedId] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const logRef = useRef(null);
-
-  const DEMO_SEQUENCES = {
-      "demo-1": {
-        step: "ready", activeEmail: 0, notes: "",
-        research: "MedVault Health is a fast-growing healthtech company in Austin, TX with 420 employees. They have 6 open developer roles that have been unfilled for 3+ weeks, signaling hiring urgency. Sarah Chen, their Technical Recruiter, is a 2nd-degree LinkedIn connection via David Kim (Engineering Lead at HealthStack). MedVault has no existing offshore or nearshore partnerships, making them an ideal prospect for BairesDev's healthcare vertical expertise.",
-        emails: [
-          { type: "intro", subject: "Your 6 unfilled dev roles at MedVault", body: "Sarah — I noticed MedVault has had Senior Backend and DevOps roles open for 3+ weeks. In healthtech, that kind of delay can stall product timelines fast.\n\nWe at BairesDev just helped a Series B healthtech company staff 4 senior engineers in under 3 weeks — all HIPAA-experienced, all retained past 12 months.\n\nWorth a 15-minute call this week to see if we can help clear your backlog?" },
-          { type: "follow-up-1", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — quick follow-up. A mid-size EHR platform we work with cut their time-to-hire from 8 weeks to 12 days using our pre-vetted nearshore engineers.\n\nHappy to share specifics if useful." },
-          { type: "follow-up-2", subject: "Re: Your 6 unfilled dev roles at MedVault", body: "Sarah — I know things move fast in healthtech recruiting. No worries if the timing isn't right.\n\nIf those roles are still open down the road, I'm here. Happy to help whenever it makes sense." }
-        ]
-      },
-      "demo-2": {
-        step: "ready", activeEmail: 0, notes: "",
-        research: "FreightWise Logistics is a mid-size logistics company in Nashville, TN with 680 employees. They're hiring Full Stack Developers and React Engineers, suggesting a digital transformation or platform build. Marcus Johnson is the Hiring Manager. No existing offshore teams detected, and their Nashville location means high cost-of-living talent competition. BairesDev's logistics experience with route optimization and supply chain platforms is directly relevant.",
-        emails: [
-          { type: "intro", subject: "Scaling your dev team at FreightWise", body: "Marcus — saw FreightWise is hiring Full Stack and React engineers in Nashville. Competing for that talent against healthcare and fintech in the same market is tough.\n\nBairesDev recently helped a $200M logistics company build out their real-time tracking platform with 3 senior React devs — deployed in under 2 weeks, still on the team 8 months later.\n\nOpen to a quick call to see if we could help accelerate your hiring?" },
-          { type: "follow-up-1", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — one more data point. A freight management company we work with saved ~40% on engineering costs by augmenting with our nearshore team, without sacrificing code quality or velocity.\n\nHappy to walk through how they structured it." },
-          { type: "follow-up-2", subject: "Re: Scaling your dev team at FreightWise", body: "Marcus — totally understand if this isn't a priority right now.\n\nIf those roles are still open later or if you need to scale quickly, feel free to reach out anytime." }
-        ]
-      },
-      "demo-3": {
-        step: "ready", activeEmail: 0, notes: "",
-        research: "Apex Financial Group is a Series C fintech in Denver, CO with 310 employees and 8 open engineering roles — signaling aggressive growth. Jessica Park, VP of Engineering, is leading the hiring push. With a small eng team in a high cost-of-living market, they're likely struggling to compete for local talent. BairesDev's fintech expertise (SOC 2 compliant teams, PCI-DSS experience) and track record with similar-stage companies make this a strong fit.",
-        emails: [
-          { type: "intro", subject: "8 open eng roles at Apex — let's fix that", body: "Jessica — 8 engineering roles open at a 310-person fintech is a big lift, especially in Denver's market right now.\n\nBairesDev helped a Series B payments company staff 5 senior engineers in 10 days — all with SOC 2 and PCI-DSS experience. They shipped their compliance milestone 3 weeks early.\n\nWorth 15 minutes to see if we can help Apex move faster?" },
-          { type: "follow-up-1", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — another fintech we work with (similar stage to Apex) cut their engineering costs by 35% while doubling their deployment frequency with our nearshore team.\n\nHappy to share the playbook if it's useful." },
-          { type: "follow-up-2", subject: "Re: 8 open eng roles at Apex — let's fix that", body: "Jessica — I know scaling engineering at a Series C pace is intense. No pressure at all.\n\nIf those roles are still open or you need to ramp quickly, I'm a message away." }
-        ]
-      }
-  };
 
   const loadDemo = () => {
     const demoProspects = [
-      { id: "demo-1", company: "MedVault Health", industry: "Healthcare", size: 420, sizeSource: "LinkedIn", location: "Austin, TX", roles: ["Senior Backend Engineer", "DevOps Engineer"], source: "LinkedIn", posted: "2d ago", matchScore: 92, linkedinUrl: "https://linkedin.com/company/medvault", nearshoreScore: 88, nearshoreSignals: ["No existing offshore presence", "6 open dev roles unfilled 3+ weeks", "Non-tech healthcare company scaling fast"], recruiter: { name: "Sarah Chen", title: "Technical Recruiter", linkedinUrl: "https://linkedin.com/in/sarah-chen" }, connectionStatus: { status: "possible", connectionDegree: "2nd", details: "You and Sarah Chen both worked at companies in the Austin healthtech ecosystem", mutualConnections: ["David Kim - Engineering Lead at HealthStack"], sharedGroups: [] }, companyRelationship: "Shared Austin tech community", recruiterRelationship: "2nd degree via David Kim" },
-      { id: "demo-2", company: "FreightWise Logistics", industry: "Logistics", size: 680, sizeSource: "Indeed", location: "Nashville, TN", roles: ["Full Stack Developer", "React Engineer"], source: "Indeed", posted: "5d ago", matchScore: 85, linkedinUrl: "", indeedUrl: "https://indeed.com/jobs?q=freightwise", nearshoreScore: 76, nearshoreSignals: ["Mid-size logistics firm", "2 dev roles open", "No mention of offshore teams"], recruiter: { name: "Marcus Johnson", title: "Hiring Manager", linkedinUrl: "https://linkedin.com/in/marcus-johnson" } },
-      { id: "demo-3", company: "Apex Financial Group", industry: "Finance", size: 310, sizeSource: "LinkedIn", location: "Denver, CO", roles: ["Software Engineer", "Software Engineer", "Software Engineer", "Data Engineer", "Platform Engineer"], source: "Multiple", posted: "1d ago", matchScore: 95, linkedinUrl: "https://linkedin.com/company/apex-financial", ziprecruiterUrl: "https://ziprecruiter.com/c/apex-financial", nearshoreScore: 91, nearshoreSignals: ["Series C fintech, aggressive hiring", "8 engineering roles open", "High cost-of-living market with small eng team"], recruiter: { name: "Jessica Park", title: "VP of Engineering", linkedinUrl: "https://linkedin.com/in/jessica-park" } },
+      { id: "demo-1", company: "MedVault Health", industry: "Healthcare", logoUrl: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs><path d="M50 8L12 30v35c0 18 16 30 38 30s38-12 38-30V30Z" fill="url(#g)"/><rect x="40" y="32" width="20" height="40" rx="3" fill="#fff"/><rect x="30" y="42" width="40" height="20" rx="3" fill="#fff"/></svg>'), size: 420, sizeSource: "LinkedIn", location: "Austin, TX", roles: ["Senior Backend Engineer", "DevOps Engineer"], source: "LinkedIn", posted: "2d ago", matchScore: 90, rawMatchScore: 92, rawNearshoreScore: 88, linkedinUrl: "https://linkedin.com/company/medvault", nearshoreScore: 88, nearshoreSignals: ["No existing offshore presence", "6 open dev roles unfilled 3+ weeks", "Non-tech healthcare company scaling fast"], recruiter: { name: "Sarah Chen", title: "Technical Recruiter", linkedinUrl: "https://linkedin.com/in/sarah-chen", photoUrl: "https://randomuser.me/api/portraits/women/44.jpg" }, connectionStatus: { status: "possible", connectionDegree: "2nd", details: "You and Sarah Chen both worked at companies in the Austin healthtech ecosystem", mutualConnections: ["David Kim - Engineering Lead at HealthStack"], sharedGroups: [] }, companyRelationship: "Shared Austin tech community", recruiterRelationship: "2nd degree via David Kim" },
+      { id: "demo-2", company: "FreightWise Logistics", industry: "Logistics", size: 680, sizeSource: "Indeed", location: "Nashville, TN", roles: ["Full Stack Developer", "React Engineer"], source: "Indeed", posted: "5d ago", matchScore: 81, rawMatchScore: 85, rawNearshoreScore: 76, linkedinUrl: "", indeedUrl: "https://indeed.com/jobs?q=freightwise", nearshoreScore: 76, nearshoreSignals: ["Mid-size logistics firm", "2 dev roles open", "No mention of offshore teams"], recruiter: { name: "Marcus Johnson", title: "Hiring Manager", linkedinUrl: "https://linkedin.com/in/marcus-johnson" } },
+      { id: "demo-3", company: "Apex Financial Group", industry: "Finance", size: 310, sizeSource: "LinkedIn", location: "Denver, CO", roles: ["Software Engineer", "Software Engineer", "Software Engineer", "Data Engineer", "Platform Engineer"], source: "Multiple", posted: "1d ago", matchScore: 93, rawMatchScore: 95, rawNearshoreScore: 91, linkedinUrl: "https://linkedin.com/company/apex-financial", ziprecruiterUrl: "https://ziprecruiter.com/c/apex-financial", nearshoreScore: 91, nearshoreSignals: ["Series C fintech, aggressive hiring", "8 engineering roles open", "High cost-of-living market with small eng team"], recruiter: { name: "Jessica Park", title: "VP of Engineering", linkedinUrl: "https://linkedin.com/in/jessica-park" } },
     ];
     setResults(demoProspects);
     setPhase("done");
@@ -394,7 +397,12 @@ export default function DevScout() {
         throw new Error(`Could not parse JSON. Raw: ${raw.slice(0, 200)}`);
       }
 
-      const newProspects = (parsed.prospects || []).map(p => ({ ...p, id: nextId.current++ }));
+      const newProspects = (parsed.prospects || []).map(p => {
+        const ms = p.matchScore || 0;
+        const ns = p.nearshoreScore || 0;
+        const combined = Math.round((ms + ns) / 2);
+        return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns };
+      });
 
       // Merge with existing results, deduplicating by company name (case-insensitive)
       setResults(prev => {
@@ -475,8 +483,6 @@ export default function DevScout() {
     }
   };
 
-  const industries = useMemo(() => ["All", ...new Set(results.map(r => r.industry).filter(Boolean))], [results]);
-
   const filtered = useMemo(() => results.filter(r => {
     if (filters.source !== "All" && r.source !== filters.source) return false;
     if (filters.industry !== "All" && r.industry !== filters.industry) return false;
@@ -492,14 +498,14 @@ export default function DevScout() {
     if (sequences[id]?.step === "researching") return;
     // Use pre-built demo data for demo prospects
     if (DEMO_SEQUENCES[id]) {
-      setSequences(prev => ({ ...prev, [id]: { ...DEMO_SEQUENCES[id] } }));
+      setSequences(prev => ({ ...prev, [id]: { ...DEMO_SEQUENCES[id], refreshCount: prev[id]?.refreshCount || 0 } }));
       return;
     }
-    setSequences(prev => ({ ...prev, [id]: { step: "researching", research: "", emails: [], activeEmail: 0, notes: prev[id]?.notes || "" } }));
+    setSequences(prev => ({ ...prev, [id]: { step: "researching", research: "", emails: [], activeEmail: 0, notes: prev[id]?.notes || "", refreshCount: prev[id]?.refreshCount || 0 } }));
     try {
       const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl));
       const parsed = parseAgentJSON(raw);
-      setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [] } }));
+      setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [], refreshCount: prev[id]?.refreshCount || 0 } }));
     } catch (err) {
       console.error("Sequence error:", err);
       setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "idle" } }));
@@ -515,7 +521,6 @@ export default function DevScout() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff" }}>
@@ -529,7 +534,10 @@ export default function DevScout() {
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
           <span className="ds-hide-mobile" style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em" }}>INDEED · LINKEDIN · ZIPRECRUITER · BUILTIN · DICE</span>
           {activeSequenceCount > 0 && <span style={{ fontSize: 12, fontFamily: "monospace", color: "#64748b" }}><span style={{ color: "#3b82f6", fontWeight: 700 }}>{activeSequenceCount}</span> prospecting</span>}
-          {phase === "done" && <span style={{ fontSize: 11, color: "#16a34a", fontFamily: "monospace" }}>● LIVE DATA</span>}
+          {phase === "done" && (results.length > 0 && results[0].id?.toString().startsWith("demo")
+            ? <span style={{ fontSize: 11, color: "#8b5cf6", fontFamily: "monospace" }}>● DEMO DATA</span>
+            : <span style={{ fontSize: 11, color: "#16a34a", fontFamily: "monospace" }}>● LIVE DATA</span>
+          )}
         </div>
       </div>
 
@@ -537,14 +545,14 @@ export default function DevScout() {
         {/* Sidebar */}
         <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #e2e8f0", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff" }}>
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.1em", marginBottom: 7 }}>FOCUS QUERY (optional)</div>
+            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>FOCUS QUERY (optional)</div>
             <textarea value={customQuery} onChange={e => setCustomQuery(e.target.value)}
               placeholder="e.g. healthcare in Texas, fintech hiring React devs..."
               rows={3} style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }} />
           </div>
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.1em", marginBottom: 7 }}>YOUR LINKEDIN</div>
+            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>YOUR LINKEDIN</div>
             <input value={linkedinUrl} onChange={e => { setLinkedinUrl(e.target.value); localStorage.setItem("ds_linkedin", e.target.value); }}
               placeholder="https://linkedin.com/in/your-profile"
               style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box" }} />
@@ -561,7 +569,7 @@ export default function DevScout() {
             </button>
           ) : (
             <button onClick={runScan} disabled={enrichPhase === "enriching"}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: enrichPhase === "enriching" ? "not-allowed" : "pointer", background: enrichPhase === "enriching" ? "#cbd5e1" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: enrichPhase === "enriching" ? 0.6 : 1, transition: "all 0.2s" }}>
               ⚡ SCAN FOR PROSPECTS
             </button>
           )}
@@ -574,7 +582,7 @@ export default function DevScout() {
           )}
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
               <span>MAX EMPLOYEES</span><span style={{ color: "#3b82f6" }}>100–{scanMaxSize.toLocaleString()}</span>
             </div>
             <input type="range" min={100} max={10000} step={100} value={scanMaxSize} onChange={e => setScanMaxSize(+e.target.value)} style={{ width: "100%", accentColor: "#3b82f6" }} />
@@ -652,7 +660,15 @@ export default function DevScout() {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>↓ Export CSV</button>
-                  <button onClick={clearAll} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #fecaca", background: "#ffffff", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>✕ Clear All</button>
+                  {confirmClear ? (
+                    <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "#ef4444", fontFamily: "monospace" }}>Clear all?</span>
+                      <button onClick={() => { clearAll(); setConfirmClear(false); }} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>Yes</button>
+                      <button onClick={() => setConfirmClear(false)} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>No</button>
+                    </span>
+                  ) : (
+                    <button onClick={() => setConfirmClear(true)} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #fecaca", background: "#ffffff", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>✕ Clear All</button>
+                  )}
                 </div>
               </div>
 
@@ -672,10 +688,10 @@ export default function DevScout() {
                       <span className="ds-show-mobile" style={{ display: "none", position: "absolute", top: 12, right: 14, fontSize: 13, fontWeight: 700, fontFamily: "monospace", color: (r.matchScore || 0) >= 85 ? "#16a34a" : (r.matchScore || 0) >= 70 ? "#d97706" : "#94a3b8" }}>{r.matchScore || 0}%</span>
 
                       <div className="ds-card-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                        <div className="ds-hide-mobile" style={{ width: 42, height: 42, borderRadius: 9, background: lc + "18", border: `1px solid ${lc}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: lc, fontFamily: "monospace", flexShrink: 0, overflow: "hidden", position: "relative" }}>
+                        <div className="ds-hide-mobile" style={{ width: 42, height: 42, borderRadius: 9, background: lc + "18", border: `1px solid ${lc}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: lc, fontFamily: "monospace", flexShrink: 0, overflow: "hidden", position: "relative" }}>
                           {initials}
                           <img
-                            src={`https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`}
+                            src={r.logoUrl || `https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`}
                             alt=""
                             style={{ width: 42, height: 42, objectFit: "contain", position: "absolute", background: "#fff", padding: 4, borderRadius: 9 }}
                             onError={e => {
@@ -729,7 +745,7 @@ export default function DevScout() {
                           )}
                         </div>
                         <div className="ds-hide-mobile" style={{ width: 150, flexShrink: 0 }}>
-                          <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: "monospace" }}>MATCH SCORE</div>
+                          <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: "monospace", cursor: "default" }} title="Match Score based on number of open dev roles, company growth, company size fit, industry, hiring urgency and propensity to nearshore, based on public information.">MATCH SCORE</div>
                           <MatchBar value={r.matchScore || 0} />
                         </div>
                         {seqStep === "ready" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.ready, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "pulse 2s ease-in-out infinite" }} />PROSPECTING</span>}
@@ -755,8 +771,9 @@ export default function DevScout() {
                             <div style={{ marginBottom: 14 }}>
                               <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>HIRING CONTACT</div>
                               <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#475569", fontWeight: 600, flexShrink: 0 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#475569", fontWeight: 600, flexShrink: 0, overflow: "hidden", position: "relative" }}>
                                   {r.recruiter.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                                  {r.recruiter.photoUrl && <img src={r.recruiter.photoUrl} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", position: "absolute", top: 0, left: 0 }} onError={e => { e.target.style.display = "none"; }} />}
                                 </div>
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontSize: 13, color: "#0f172a", fontWeight: 600 }}>{r.recruiter.name}</div>
@@ -864,9 +881,9 @@ export default function DevScout() {
                                             <svg width="16" height="12" viewBox="0 0 48 36" fill="none"><path d="M6 0h36c3.3 0 6 2.7 6 6v24c0 3.3-2.7 6-6 6H6c-3.3 0-6-2.7-6-6V6c0-3.3 2.7-6 6-6z" fill="#F1F3F4"/><path d="M2 6l22 15L46 6" stroke="#EA4335" strokeWidth="2" fill="none"/><path d="M0 6v24c0 3.3 2.7 6 6 6h4V12L0 6z" fill="#4285F4"/><path d="M48 6v24c0 3.3-2.7 6-6 6h-4V12l10-6z" fill="#34A853"/><path d="M10 36V12L24 21 38 12v24" fill="#C5221F" opacity="0.05"/><path d="M0 6l10 6 14 9 14-9 10-6" fill="none"/><path d="M0 6l24 15L48 6" stroke="#EA4335" strokeWidth="0" fill="none"/><rect x="10" y="0" width="28" height="12" rx="0" fill="#C5221F" opacity="0.9"/><path d="M10 12L0 6c0-3.3 2.7-6 6-6h4v12z" fill="#F14336"/><path d="M38 12l10-6c0-3.3-2.7-6-6-6h-4v12z" fill="#FBBC05"/><path d="M10 12l14 9 14-9" fill="#C5221F"/></svg>
                                             Draft in Gmail
                                           </button>
-                                          <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`Subject: ${em.subject}\n\n${em.body}`); }}
-                                            style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8 }}>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Email
+                                          <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`Subject: ${em.subject}\n\n${em.body}`); setCopiedId(r.id); setTimeout(() => setCopiedId(null), 2000); }}
+                                            style={{ padding: "6px 12px", borderRadius: 5, border: `1px solid ${copiedId === r.id ? "#bbf7d0" : "#e2e8f0"}`, background: copiedId === r.id ? "#f0fdf4" : "#ffffff", color: copiedId === r.id ? "#16a34a" : "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s" }}>
+                                            {copiedId === r.id ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>} {copiedId === r.id ? "Copied!" : "Copy Email"}
                                           </button>
                                         </div>
                                       </div>
@@ -879,13 +896,23 @@ export default function DevScout() {
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 {seqStep === "ready" && (
                                   <button onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "sent" } })); }}
-                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #d1d5db", background: "#f9fafb", color: "#6b7280", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
+                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
                                     Mark Sent
                                   </button>
                                 )}
                                 {seqStep === "sent" && (
-                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #d1d5db", background: "#f3f4f6", color: "#9ca3af", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sent
+                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f1f5f9", color: "#94a3b8", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sent
+                                  </span>
+                                )}
+                                {(seq.refreshCount || 0) < 3 ? (
+                                  <button onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], refreshCount: (prev[r.id].refreshCount || 0) + 1 } })); startSequence(r); }}
+                                    style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Refresh Email ({3 - (seq.refreshCount || 0)})
+                                  </button>
+                                ) : (
+                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f1f5f9", color: "#94a3b8", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> No Refreshes Left
                                   </span>
                                 )}
                                 <button onClick={e => { e.stopPropagation(); setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; }); setSelected(null); }}
