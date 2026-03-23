@@ -46,22 +46,26 @@ const AGENT_MODEL = "claude-haiku-4-5-20251001";
 const AGENT_MAX_ROUNDS = 6;
 
 // ── Shared agentic loop: handles tool_use rounds until stop_reason = "end_turn" ──
-async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, signal }) {
+async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, signal, noTools }) {
   const messages = [{ role: "user", content: userMsg }];
+  const tools = noTools ? undefined : [{ type: "web_search_20250305", name: "web_search" }];
+  let accumulatedText = "";
 
   for (let round = 0; round < AGENT_MAX_ROUNDS; round++) {
     if (signal?.aborted) throw new DOMException("Scan stopped", "AbortError");
+
+    // On last round, drop tools to force a text response
+    const isLastRound = round === AGENT_MAX_ROUNDS - 1;
+    const roundTools = isLastRound ? undefined : tools;
+
+    const body = { model: AGENT_MODEL, max_tokens, system, messages };
+    if (roundTools) body.tools = roundTools;
+
     const res = await fetch(`${API_URL}/api/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal,
-      body: JSON.stringify({
-        model: AGENT_MODEL,
-        max_tokens,
-        system,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages
-      })
+      body: JSON.stringify(body)
     });
 
     if (!res.ok) {
@@ -72,6 +76,11 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
     const data = await res.json();
     const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
     const textBlocks = data.content.filter(b => b.type === "text");
+
+    // Capture any text the model returns alongside tool calls
+    if (textBlocks.length > 0) {
+      accumulatedText += textBlocks.map(b => b.text).join("").trim();
+    }
 
     if (toolUseBlocks.length > 0) {
       if (onSearchLog) {
@@ -90,24 +99,38 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
       continue;
     }
 
-    return textBlocks.map(b => b.text).join("").trim();
+    return textBlocks.map(b => b.text).join("").trim() || accumulatedText;
   }
 
+  // If we got here, all rounds were used — return whatever text we accumulated
+  if (accumulatedText) return accumulatedText;
   throw new Error("Agent did not produce a final response after max rounds.");
 }
 
 async function runAgentLoop(userMsg, onSearchLog, signal) {
-  const raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+  let raw;
+  try {
+    raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    // If max rounds or other error, raw stays undefined — fall through to retry
+    console.warn("First pass failed:", err.message);
+    raw = "";
+  }
 
-  // If response isn't JSON, retry once asking for just the JSON
-  const trimmed = raw.replace(/```json|```/gi, "").trim();
+  // If response isn't JSON, retry once with no tools — just convert to JSON
+  const trimmed = (raw || "").replace(/```json|```/gi, "").trim();
   if (!trimmed.startsWith("{")) {
-    if (onSearchLog) onSearchLog("Retrying for JSON format...");
+    if (onSearchLog) onSearchLog("Converting results to JSON...");
+    const retryMsg = raw
+      ? `You just researched companies hiring developers. Here is what you found:\n\n${raw.slice(0, 2000)}\n\nNow convert your findings into the required JSON format. Return ONLY the JSON object starting with { and ending with }.`
+      : userMsg + "\n\nIMPORTANT: Return ONLY a JSON object. Do 1-2 quick searches then return JSON immediately.";
     const retry = await runAgentLoopCore({
-      system: "You MUST respond with ONLY a JSON object. No text, no explanation. Start with { and end with }.",
+      system: "You MUST respond with ONLY a JSON object. No text, no explanation. Start with { and end with }. Follow the JSON format from the user message exactly.",
       max_tokens: 3000,
-      userMsg: `You just researched companies hiring developers. Here is what you found:\n\n${raw.slice(0, 2000)}\n\nNow convert your findings into the required JSON format. Return ONLY the JSON object starting with { and ending with }.`,
-      signal
+      userMsg: retryMsg,
+      signal,
+      noTools: !raw // Only give tools if we have nothing to convert
     });
     return retry;
   }
