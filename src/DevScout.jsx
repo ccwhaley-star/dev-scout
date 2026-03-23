@@ -27,14 +27,15 @@ const Tag = ({ children, color = "#64748b" }) => (
   <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: color + "18", color, border: `1px solid ${color}33`, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "monospace" }}>{children}</span>
 );
 
-const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers. Do 2-3 web searches, then return JSON immediately.
+const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers. Do exactly 2 web searches, then IMMEDIATELY return the JSON. Do NOT do more than 3 searches.
 
 Rules:
+- After 2-3 searches, STOP searching and return the JSON immediately. Do not search more.
 - Always return JSON even with partial data. Use best estimates for missing fields.
 - Include ANY company you find hiring developers, regardless of size or industry.
 - REQUIRED: Every prospect MUST include a recruiter or hiring manager name. Search for the recruiter/hiring contact on LinkedIn or the job posting. If you cannot find any contact name for a company, do NOT include that prospect.
 - Do NOT explain, apologize, or refuse. Just return the JSON.
-- Your response must start with { and end with }. Nothing else.
+- Your ENTIRE response must be a single JSON object. Start with { and end with }. No text before or after.
 
 JSON format:
 {"prospects":[{"company":"","industry":"","size":0,"sizeSource":"","location":"","roles":[],"source":"LinkedIn|Indeed|ZipRecruiter|BuiltIn|Dice|Multiple","posted":"","matchScore":0,"linkedinUrl":"","indeedUrl":"","ziprecruiterUrl":"","builtinUrl":"","diceUrl":"","recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
@@ -96,7 +97,21 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
 }
 
 async function runAgentLoop(userMsg, onSearchLog, signal) {
-  return runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+  const raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 3000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+
+  // If response isn't JSON, retry once asking for just the JSON
+  const trimmed = raw.replace(/```json|```/gi, "").trim();
+  if (!trimmed.startsWith("{")) {
+    if (onSearchLog) onSearchLog("Retrying for JSON format...");
+    const retry = await runAgentLoopCore({
+      system: "You MUST respond with ONLY a JSON object. No text, no explanation. Start with { and end with }.",
+      max_tokens: 3000,
+      userMsg: `You just researched companies hiring developers. Here is what you found:\n\n${raw.slice(0, 2000)}\n\nNow convert your findings into the required JSON format. Return ONLY the JSON object starting with { and ending with }.`,
+      signal
+    });
+    return retry;
+  }
+  return raw;
 }
 
 const SYSTEM_ENRICH = `You are a LinkedIn connection research agent. Given a list of companies with recruiters and a user's LinkedIn profile or name, determine if the user might have connections at those companies.
