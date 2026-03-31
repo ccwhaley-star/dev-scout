@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
+import { useAuth } from "./AuthProvider";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
 
@@ -42,12 +43,12 @@ JSON format (omit any field that is empty or unknown):
 {"prospects":[{"company":"","industry":"","size":0,"location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
 matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 4-6 prospects maximum. Keep notes under 10 words. Omit empty URL fields entirely — only include URLs you actually found.`;
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.VITE_SUPABASE_URL ? "/api" : "http://localhost:3002");
 const AGENT_MODEL = "claude-haiku-4-5-20251001";
 const AGENT_MAX_ROUNDS = 6;
 
 // ── Shared agentic loop: handles tool_use rounds until stop_reason = "end_turn" ──
-async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, signal, noTools }) {
+async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, signal, noTools, token, action }) {
   const messages = [{ role: "user", content: userMsg }];
   const tools = noTools ? undefined : [{ type: "web_search_20250305", name: "web_search" }];
   let accumulatedText = "";
@@ -62,9 +63,13 @@ async function runAgentLoopCore({ system, max_tokens, userMsg, onSearchLog, sign
     const body = { model: AGENT_MODEL, max_tokens, system, messages };
     if (roundTools) body.tools = roundTools;
 
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (action) headers["x-devscout-action"] = action;
+
     const res = await fetch(`${API_URL}/api/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       signal,
       body: JSON.stringify(body)
     });
@@ -117,10 +122,10 @@ function looksLikeJSON(str) {
   return cleaned.endsWith("}");
 }
 
-async function runAgentLoop(userMsg, onSearchLog, signal) {
+async function runAgentLoop(userMsg, onSearchLog, signal, token) {
   let raw;
   try {
-    raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 8000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal });
+    raw = await runAgentLoopCore({ system: SYSTEM, max_tokens: 8000, userMsg, onSearchLog: q => onSearchLog(`Searching: "${q}"`), signal, token, action: "scan" });
   } catch (err) {
     if (err.name === "AbortError") throw err;
     console.warn("First pass failed:", err.message);
@@ -140,7 +145,8 @@ async function runAgentLoop(userMsg, onSearchLog, signal) {
         max_tokens: 8000,
         userMsg: raw.slice(0, 3000),
         signal,
-        noTools: true
+        noTools: true,
+        token, action: "scan"
       });
       console.log("Retry response:", retry?.slice(0, 500));
       if (looksLikeJSON(retry)) return retry;
@@ -156,7 +162,7 @@ async function runAgentLoop(userMsg, onSearchLog, signal) {
     max_tokens: 8000,
     userMsg,
     onSearchLog: q => onSearchLog(`Searching: "${q}"`),
-    signal
+    signal, token, action: "scan"
   });
   console.log("Last resort response:", lastTry?.slice(0, 500));
   return lastTry;
@@ -275,7 +281,7 @@ function extractNameFromLinkedIn(url) {
   return match[1].replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-async function runEnrichLoop(prospects, userLinkedin, userName, onSearchLog) {
+async function runEnrichLoop(prospects, userLinkedin, userName, onSearchLog, token) {
   const companyList = prospects.map(p => {
     const rec = p.recruiter?.name ? `Recruiter: ${p.recruiter.name} (${p.recruiter.title || "unknown title"})` : "Recruiter: unknown";
     return `- ${p.company} (${p.location || "unknown location"}) — ${rec}`;
@@ -290,10 +296,10 @@ ${companyList}
 
 Search for connections between this user and each company/recruiter. Return JSON with enrichments.`;
 
-  return runAgentLoopCore({ system: SYSTEM_ENRICH, max_tokens: 6000, userMsg, onSearchLog: q => onSearchLog(`Cross-ref: "${q}"`) });
+  return runAgentLoopCore({ system: SYSTEM_ENRICH, max_tokens: 6000, userMsg, onSearchLog: q => onSearchLog(`Cross-ref: "${q}"`), token, action: "enrich" });
 }
 
-async function runSequenceAgent(prospect, userLinkedin, userName) {
+async function runSequenceAgent(prospect, userLinkedin, userName, token) {
   const connectionInfo = prospect.connectionStatus
     ? `Connection status: ${prospect.connectionStatus.status}\nLinkedIn connection degree: ${prospect.connectionStatus.connectionDegree || "unknown"}\nDetails: ${prospect.connectionStatus.details || "none"}\nCompany relationship: ${prospect.companyRelationship || "unknown"}\nRecruiter relationship: ${prospect.recruiterRelationship || "unknown"}`
     : "No connection data available.";
@@ -319,7 +325,7 @@ LinkedIn: ${userLinkedin || "not provided"}
 
 Research this company and recruiter, then generate the outreach sequence JSON.`;
 
-  return runAgentLoopCore({ system: SYSTEM_SEQUENCE, max_tokens: 6000, userMsg });
+  return runAgentLoopCore({ system: SYSTEM_SEQUENCE, max_tokens: 6000, userMsg, token, action: "sequence" });
 }
 
 function parseAgentJSON(raw) {
@@ -385,7 +391,8 @@ const DEMO_SEQUENCES = {
   }
 };
 
-export default function DevScout() {
+export default function DevScout({ user }) {
+  const { getToken } = useAuth();
   const [phase, setPhase] = useState("idle"); // idle | scanning | done | error
   const [logs, setLogs] = useState([]);
   const [progress, setProgress] = useState(0);
@@ -450,6 +457,7 @@ export default function DevScout() {
     scanAbort.current = controller;
     setPhase("scanning"); setSummary(""); setLogs([]); setProgress(5); setSelected(null); setErrorMsg("");
     pushLog("Initializing search agent...");
+    const token = await getToken?.();
 
     // Gradual ramp while waiting for first search result
     const rampTimer = setInterval(() => {
@@ -468,7 +476,7 @@ export default function DevScout() {
         clearInterval(rampTimer);
         setProgress(Math.min(20 + searchCount * 6, 85));
         pushLog(query);
-      }, controller.signal);
+      }, controller.signal, token);
 
       clearInterval(rampTimer);
       setProgress(90);
@@ -529,14 +537,15 @@ export default function DevScout() {
         try {
           let enrichSearchCount = 0;
           const enrichRaw = await runEnrichLoop(
-            newProspects.slice(0, 6), // top 6 to keep searches manageable
+            newProspects.slice(0, 6),
             linkedinUrl,
             resolvedName,
             (query) => {
               enrichSearchCount++;
               setEnrichProgress(Math.min(10 + enrichSearchCount * 8, 90));
               pushLog(query);
-            }
+            },
+            token
           );
 
           const enrichParsed = parseAgentJSON(enrichRaw);
@@ -595,7 +604,8 @@ export default function DevScout() {
     }
     setSequences(prev => ({ ...prev, [id]: { step: "researching", research: "", emails: [], activeEmail: 0, notes: prev[id]?.notes || "", refreshCount: prev[id]?.refreshCount || 0 } }));
     try {
-      const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl));
+      const seqToken = await getToken?.();
+      const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl), seqToken);
       const parsed = parseAgentJSON(raw);
       setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [], refreshCount: prev[id]?.refreshCount || 0 } }));
     } catch (err) {
