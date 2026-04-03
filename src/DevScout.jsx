@@ -629,7 +629,7 @@ export default function DevScout({ user }) {
     <div className="ds-root" style={{ minHeight: "100%", background: "#f1f5f9", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
-      <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff" }}>
+      <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/logo.svg" alt="DevScout" style={{ width: 38, height: 38 }} />
           <div>
@@ -649,7 +649,7 @@ export default function DevScout({ user }) {
 
       <div className="ds-layout" style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
-        <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #e2e8f0", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff" }}>
+        <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #e2e8f0", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
           <div>
             <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>FOCUS QUERY (optional)</div>
             <textarea value={customQuery} onChange={e => setCustomQuery(e.target.value)}
