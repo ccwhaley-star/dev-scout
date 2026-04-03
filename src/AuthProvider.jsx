@@ -13,8 +13,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!supabase) {
-      // Local-only mode — skip auth
-      setUser({ id: 'local', email: 'local@dev', user_metadata: { full_name: 'Local User' } });
+      // Local-only mode — show login screen for preview (no auto-login)
       setLoading(false);
       return;
     }

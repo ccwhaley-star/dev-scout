@@ -35,7 +35,7 @@ function LoginScreen() {
       <div style={{ background: '#fff', padding: '48px 56px', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', width: 380 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 28, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 8 }}>DevScout</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>AI-Powered Prospecting</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.1em' }}>AI-POWERED PROSPECTING</div>
         </div>
 
         {/* Tabs */}
