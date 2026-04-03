@@ -626,7 +626,7 @@ export default function DevScout({ user }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+    <div className="ds-root" style={{ minHeight: "100%", background: "#f1f5f9", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff" }}>
@@ -1052,9 +1052,10 @@ export default function DevScout({ user }) {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @media (max-width: 768px) {
-  .ds-layout { flex-direction: column !important; overflow-y: auto !important; }
-  .ds-sidebar { width: 100% !important; border-right: none !important; border-top: 1px solid #e2e8f0; order: 2; flex-shrink: 0; }
-  .ds-main { padding: 16px !important; order: 1; overflow: visible !important; flex-shrink: 0; }
+  .ds-root { min-height: auto !important; height: auto !important; }
+  .ds-layout { flex-direction: column !important; height: auto !important; flex: none !important; }
+  .ds-sidebar { width: 100% !important; border-right: none !important; border-top: 1px solid #e2e8f0; order: 2; flex: none !important; }
+  .ds-main { padding: 16px !important; order: 1; overflow: visible !important; flex: none !important; height: auto !important; }
   .ds-hide-mobile { display: none !important; }
   .ds-show-mobile { display: flex !important; }
   .ds-card-row { gap: 8px !important; }
