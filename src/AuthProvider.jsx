@@ -39,6 +39,22 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const signInWithEmail = async (email, password) => {
+    if (!supabase) return { error: null };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  };
+
+  const signUp = async (email, password, fullName) => {
+    if (!supabase) return { error: null };
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -51,7 +67,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, getToken }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInWithEmail, signUp, signOut, getToken }}>
       {children}
     </AuthContext.Provider>
   );
