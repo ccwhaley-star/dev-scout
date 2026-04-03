@@ -1052,9 +1052,9 @@ export default function DevScout({ user }) {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @media (max-width: 768px) {
-  .ds-layout { flex-direction: column !important; overflow: visible !important; }
-  .ds-sidebar { width: 100% !important; border-right: none !important; border-top: 1px solid #e2e8f0; order: 2; }
-  .ds-main { padding: 16px !important; order: 1; overflow: visible !important; flex: none !important; }
+  .ds-layout { flex-direction: column !important; overflow-y: auto !important; }
+  .ds-sidebar { width: 100% !important; border-right: none !important; border-top: 1px solid #e2e8f0; order: 2; flex-shrink: 0; }
+  .ds-main { padding: 16px !important; order: 1; overflow: visible !important; flex-shrink: 0; }
   .ds-hide-mobile { display: none !important; }
   .ds-show-mobile { display: flex !important; }
   .ds-card-row { gap: 8px !important; }

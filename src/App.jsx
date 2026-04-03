@@ -59,7 +59,7 @@ function AppShell() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflow: 'auto' }}>
         {view === 'scout' ? <DevScout user={user} /> : <Dashboard />}
       </div>
     </div>
