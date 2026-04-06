@@ -24,7 +24,7 @@ function LoginScreen() {
       else setSuccess('Account created! Check your email to confirm, then sign in.');
     } else {
       const { error: err } = await signInWithEmail(email, password);
-      if (err) setError(err.message);
+      if (err) setError(err.message || 'Invalid email or password');
     }
     setLoading(false);
   };

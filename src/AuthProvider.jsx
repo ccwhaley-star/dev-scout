@@ -46,19 +46,27 @@ export function AuthProvider({ children }) {
   };
 
   const signInWithEmail = async (email, password) => {
-    if (!supabase) return { error: null };
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    if (!supabase) return { error: { message: 'Authentication service not configured' } };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error };
+    } catch (err) {
+      return { error: { message: err.message || 'Sign in failed' } };
+    }
   };
 
   const signUp = async (email, password, fullName) => {
-    if (!supabase) return { error: null };
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    return { error };
+    if (!supabase) return { error: { message: 'Authentication service not configured' } };
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
+      return { error };
+    } catch (err) {
+      return { error: { message: err.message || 'Sign up failed' } };
+    }
   };
 
   const signOut = async () => {
