@@ -512,10 +512,9 @@ export default function DevScout({ user }) {
       }
 
       const allProspects = parsed.prospects || [];
-      const withContact = allProspects.filter(p => p.recruiter?.name);
-      console.log(`Parsed ${allProspects.length} prospects, ${withContact.length} have contacts:`,
+      console.log(`Parsed ${allProspects.length} prospects:`,
         allProspects.map(p => `${p.company}: recruiter=${p.recruiter?.name || "NONE"}`));
-      const newProspects = withContact.map(p => {
+      const newProspects = allProspects.map(p => {
           const ms = p.matchScore || 0;
           const ns = p.nearshoreScore || 0;
           const combined = Math.round((ms + ns) / 2);
