@@ -412,16 +412,16 @@ export default function DevScout({ user }) {
   const [linkedinUrl, setLinkedinUrl] = useState(() => localStorage.getItem("ds_linkedin") || "");
   const [userName, setUserName] = useState(() => localStorage.getItem("ds_username") || "");
 
-  // Pre-populate from user profile
+  // Load prospects + profile from Supabase on mount
   useEffect(() => {
     if (!user) return;
     if (user.user_metadata?.full_name && !userName) {
       setUserName(user.user_metadata.full_name);
       localStorage.setItem("ds_username", user.user_metadata.full_name);
     }
-    // Load LinkedIn URL from Supabase profile
     import('./supabaseClient').then(({ supabase }) => {
       if (!supabase || user.id === 'local') return;
+      // Load profile
       supabase.from('user_profiles').select('linkedin_url, full_name').eq('id', user.id).single().then(({ data }) => {
         if (data?.linkedin_url && !linkedinUrl) {
           setLinkedinUrl(data.linkedin_url);
@@ -430,6 +430,67 @@ export default function DevScout({ user }) {
         if (data?.full_name && !userName) {
           setUserName(data.full_name);
           localStorage.setItem("ds_username", data.full_name);
+        }
+      });
+      // Load prospects from shared pool
+      supabase.from('prospects').select('*').order('match_score', { ascending: false }).then(({ data }) => {
+        if (data && data.length > 0) {
+          const mapped = data.map(p => ({
+            id: p.id,
+            dbId: p.id,
+            company: p.company,
+            industry: p.industry,
+            size: p.size,
+            sizeSource: p.size_source,
+            location: p.location,
+            roles: p.roles || [],
+            source: p.source,
+            posted: p.posted,
+            matchScore: p.match_score,
+            rawMatchScore: p.raw_match_score,
+            rawNearshoreScore: p.raw_nearshore_score,
+            nearshoreScore: p.nearshore_score,
+            nearshoreSignals: p.nearshore_signals || [],
+            notes: p.notes,
+            linkedinUrl: p.linkedin_url,
+            indeedUrl: p.indeed_url,
+            ziprecruiterUrl: p.ziprecruiter_url,
+            builtinUrl: p.builtin_url,
+            diceUrl: p.dice_url,
+            recruiter: {
+              name: p.recruiter_name,
+              title: p.recruiter_title,
+              email: p.recruiter_email,
+              linkedinUrl: p.recruiter_linkedin_url,
+              photoUrl: p.recruiter_photo_url,
+            },
+            connectionStatus: p.connection_status || {},
+            companyRelationship: p.company_relationship,
+            recruiterRelationship: p.recruiter_relationship,
+            scanned_by: p.scanned_by,
+            claimed_by: p.claimed_by,
+          }));
+          setResults(mapped);
+          setPhase("done");
+        }
+      });
+      // Load sequences
+      supabase.from('sequences').select('*').then(({ data }) => {
+        if (data && data.length > 0) {
+          const seqMap = {};
+          data.forEach(s => {
+            seqMap[s.prospect_id] = {
+              step: s.step,
+              research: s.research,
+              emails: s.emails || [],
+              activeEmail: s.active_email || 0,
+              notes: s.notes,
+              refreshCount: s.refresh_count || 0,
+              error: s.error_message,
+              dbId: s.id,
+            };
+          });
+          setSequences(seqMap);
         }
       });
     });
@@ -539,6 +600,48 @@ export default function DevScout({ user }) {
       });
 
       const newCount = newProspects.length;
+
+      // Save to Supabase
+      try {
+        const { supabase } = await import('./supabaseClient');
+        if (supabase && user?.id !== 'local') {
+          for (const p of newProspects) {
+            await supabase.from('prospects').upsert({
+              company: p.company,
+              industry: p.industry,
+              size: p.size,
+              size_source: p.sizeSource,
+              location: p.location,
+              roles: p.roles || [],
+              source: p.source,
+              posted: p.posted,
+              match_score: p.matchScore,
+              raw_match_score: p.rawMatchScore,
+              raw_nearshore_score: p.rawNearshoreScore,
+              nearshore_score: p.nearshoreScore,
+              nearshore_signals: p.nearshoreSignals || [],
+              notes: p.notes || '',
+              linkedin_url: p.linkedinUrl,
+              indeed_url: p.indeedUrl,
+              ziprecruiter_url: p.ziprecruiterUrl,
+              builtin_url: p.builtinUrl,
+              dice_url: p.diceUrl,
+              recruiter_name: p.recruiter?.name,
+              recruiter_title: p.recruiter?.title,
+              recruiter_email: p.recruiter?.email,
+              recruiter_linkedin_url: p.recruiter?.linkedinUrl,
+              connection_status: p.connectionStatus || {},
+              company_relationship: p.companyRelationship,
+              recruiter_relationship: p.recruiterRelationship,
+              scanned_by: user.id,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'company_lower' });
+          }
+        }
+      } catch (dbErr) {
+        console.error('Supabase save error:', dbErr);
+      }
+
       setProgress(100);
       pushLog(`Scan complete — ${newCount} new prospects found.`, true);
       finalizeLog();
@@ -628,6 +731,21 @@ export default function DevScout({ user }) {
       const raw = await runSequenceAgent(prospect, linkedinUrl, userName || extractNameFromLinkedIn(linkedinUrl), seqToken);
       const parsed = parseAgentJSON(raw);
       setSequences(prev => ({ ...prev, [id]: { ...prev[id], step: "ready", research: parsed.research || "", emails: parsed.emails || [], refreshCount: prev[id]?.refreshCount || 0 } }));
+      // Save sequence to Supabase
+      try {
+        const { supabase } = await import('./supabaseClient');
+        if (supabase && user?.id !== 'local' && prospect.dbId) {
+          await supabase.from('sequences').upsert({
+            prospect_id: prospect.dbId,
+            user_id: user.id,
+            step: 'ready',
+            research: parsed.research || '',
+            emails: parsed.emails || [],
+          }, { onConflict: 'prospect_id' });
+          // Claim the prospect
+          await supabase.from('prospects').update({ claimed_by: user.id, claimed_at: new Date().toISOString() }).eq('id', prospect.dbId).is('claimed_by', null);
+        }
+      } catch (dbErr) { console.error('Supabase sequence save error:', dbErr); }
     } catch (err) {
       console.error("Sequence error:", err);
       const friendly = err.message.includes("rate limit") ? "Rate limit — wait 1 minute and try again."
