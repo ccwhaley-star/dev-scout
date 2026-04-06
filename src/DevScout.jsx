@@ -865,7 +865,7 @@ export default function DevScout({ user }) {
   };
 
   return (
-    <div className="ds-root" style={{ minHeight: "100%", background: "#f1f5f9", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+    <div className="ds-root" style={{ minHeight: "100%", background: "#f8fafc", color: "#0f172a", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid #e2e8f0", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", position: "sticky", top: 0, zIndex: 10 }}>
@@ -888,23 +888,23 @@ export default function DevScout({ user }) {
 
       <div className="ds-layout" style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
-        <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #e2e8f0", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
+        <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #f1f5f9", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>FOCUS QUERY (optional)</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>FOCUS QUERY (optional)</div>
             <textarea value={customQuery} onChange={e => setCustomQuery(e.target.value)}
               placeholder="e.g. healthcare in Texas, fintech hiring React devs..."
               rows={3} style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }} />
           </div>
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>YOUR LINKEDIN</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>YOUR LINKEDIN</div>
             <input value={linkedinUrl} onChange={e => { setLinkedinUrl(e.target.value); localStorage.setItem("ds_linkedin", e.target.value); }}
               placeholder="https://linkedin.com/in/your-profile"
               style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box" }} />
             <input value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem("ds_username", e.target.value); }}
               placeholder="Your full name (optional)"
               style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box", marginTop: 6 }} />
-            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginTop: 4 }}>Enables recruiter cross-referencing</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginTop: 4 }}>Enables recruiter cross-referencing</div>
           </div>
 
           {phase === "scanning" ? (
@@ -913,7 +913,7 @@ export default function DevScout({ user }) {
               ■ STOP SCAN
             </button>
           ) : (
-            <button onClick={runScan} disabled={enrichPhase === "enriching"}
+            <button className="ds-btn" onClick={runScan} disabled={enrichPhase === "enriching"}
               style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: enrichPhase === "enriching" ? "not-allowed" : "pointer", background: enrichPhase === "enriching" ? "#cbd5e1" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: enrichPhase === "enriching" ? 0.6 : 1, transition: "all 0.2s" }}>
               ⚡ SCAN FOR PROSPECTS
             </button>
@@ -927,7 +927,7 @@ export default function DevScout({ user }) {
           )}
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
               <span>MAX EMPLOYEES</span><span style={{ color: "#3b82f6" }}>100–{scanMaxSize.toLocaleString()}</span>
             </div>
             <input type="range" min={100} max={10000} step={100} value={scanMaxSize} onChange={e => setScanMaxSize(+e.target.value)} style={{ width: "100%", accentColor: "#3b82f6" }} />
@@ -936,11 +936,11 @@ export default function DevScout({ user }) {
           {phase === "scanning" && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                <span style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace" }}>PROGRESS</span>
+                <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em" }}>PROGRESS</span>
                 <span style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace" }}>{progress}%</span>
               </div>
               <div style={{ height: 3, background: "#e2e8f0", borderRadius: 2 }}>
-                <div style={{ width: `${progress}%`, height: "100%", background: "linear-gradient(90deg,#3b82f6,#8b5cf6)", borderRadius: 2, transition: "width 0.6s ease" }} />
+                <div style={{ width: `${progress}%`, height: "100%", background: "linear-gradient(90deg,#3b82f6,#8b5cf6)", borderRadius: 2, transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)" }} />
               </div>
             </div>
           )}
@@ -958,11 +958,11 @@ export default function DevScout({ user }) {
           {enrichPhase === "enriching" && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                <span style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace" }}>CROSS-REFERENCE</span>
+                <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em" }}>CROSS-REFERENCE</span>
                 <span style={{ fontSize: 10, color: "#7c3aed", fontFamily: "monospace" }}>{enrichProgress}%</span>
               </div>
               <div style={{ height: 3, background: "#e2e8f0", borderRadius: 2 }}>
-                <div style={{ width: `${enrichProgress}%`, height: "100%", background: "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 2, transition: "width 0.6s ease" }} />
+                <div style={{ width: `${enrichProgress}%`, height: "100%", background: "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 2, transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)" }} />
               </div>
             </div>
           )}
@@ -1021,7 +1021,7 @@ export default function DevScout({ user }) {
 
                   return (
                     <div key={r.id} onClick={() => setSelected(isOpen ? null : r)}
-                      style={{ background: "#ffffff", border: `1px solid ${isOpen ? "#3b82f6" : "#e2e8f0"}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", transition: "all 0.15s", position: "relative", boxShadow: `${isActive ? `inset 3px 0 0 ${ACCENT_COLORS[seqStep] || DEFAULT_ACCENT}, ` : ""}${isOpen ? "0 1px 8px rgba(59,130,246,0.08)" : "0 1px 3px rgba(0,0,0,0.04)"}` }}>
+                      className="ds-card" style={{ background: "#ffffff", border: `1px solid ${isOpen ? "#3b82f6" : "#e2e8f0"}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", transition: "all 0.2s", position: "relative", boxShadow: `${isActive ? `inset 3px 0 0 ${ACCENT_COLORS[seqStep] || DEFAULT_ACCENT}, ` : ""}${isOpen ? "0 1px 8px rgba(59,130,246,0.08)" : "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)"}` }}>
                       <span className="ds-show-mobile" style={{ display: "none", position: "absolute", top: 12, right: 14, fontSize: 13, fontWeight: 700, fontFamily: "monospace", color: (r.matchScore || 0) >= 85 ? "#16a34a" : (r.matchScore || 0) >= 70 ? "#d97706" : "#94a3b8" }}>{r.matchScore || 0}%</span>
 
                       <div className="ds-card-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -1081,7 +1081,7 @@ export default function DevScout({ user }) {
                                     Assigned to {r.claimed_by_name || 'another user'}
                                   </span>
                                 ) : (
-                                  <button onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
+                                  <button className="ds-btn" onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
                                     style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
                                     ▶ Start Sequence
                                   </button>
@@ -1131,7 +1131,7 @@ export default function DevScout({ user }) {
                           {/* Hiring Contact */}
                           {r.recruiter?.name && (
                             <div style={{ marginBottom: 14 }}>
-                              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>HIRING CONTACT</div>
+                              <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>HIRING CONTACT</div>
                               <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#475569", fontWeight: 600, flexShrink: 0, overflow: "hidden", position: "relative" }}>
                                   {r.recruiter.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
@@ -1155,7 +1155,7 @@ export default function DevScout({ user }) {
                           {/* Connection Status */}
                           {r.connectionStatus && r.connectionStatus.status !== "none" && (
                             <div style={{ marginBottom: 14 }}>
-                              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>CONNECTION STATUS</div>
+                              <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>CONNECTION STATUS</div>
                               <div style={{
                                 background: r.connectionStatus.status === "likely" ? "#f0fdf4" : r.connectionStatus.status === "possible" ? "#fffbeb" : "#f8fafc",
                                 border: `1px solid ${r.connectionStatus.status === "likely" ? "#bbf7d0" : r.connectionStatus.status === "possible" ? "#fde68a" : "#e2e8f0"}`,
@@ -1215,7 +1215,7 @@ export default function DevScout({ user }) {
                               {/* Research Brief */}
                               {seq.research && (
                                 <div style={{ marginBottom: 16 }}>
-                                  <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>RESEARCH BRIEF</div>
+                                  <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>RESEARCH BRIEF</div>
                                   <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", fontSize: 13, color: "#334155", lineHeight: 1.7 }}>
                                     {seq.research}
                                   </div>
@@ -1225,7 +1225,7 @@ export default function DevScout({ user }) {
                               {/* Email Tabs */}
                               {(seq.emails || []).length > 0 && (
                                 <div style={{ marginBottom: 16 }}>
-                                  <div style={{ fontSize: 10, color: "#64748b", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>OUTREACH SEQUENCE</div>
+                                  <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>OUTREACH SEQUENCE</div>
                                   <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
                                     {seq.emails.map((em, idx) => (
                                       <button key={idx} onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], activeEmail: idx } })); }}
@@ -1305,7 +1305,11 @@ export default function DevScout({ user }) {
           )}
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+      <style>{`.ds-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.ds-btn:active { transform: translateY(0); }
+.ds-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @media (max-width: 768px) {
   .ds-root { min-height: auto !important; height: auto !important; }
