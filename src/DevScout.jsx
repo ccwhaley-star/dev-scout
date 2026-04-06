@@ -851,7 +851,8 @@ export default function DevScout({ user }) {
                             if (claimedByOther) return;
                             const mySeq = sequences[r.id];
                             const isClaimed = mySeq && mySeq.step !== "idle";
-                            if (isClaimed && !confirm("This prospect has an active sequence. Delete anyway?")) return;
+                            const msg = isClaimed ? "This prospect has an active sequence. Delete anyway?" : `Delete ${r.company}?`;
+                            if (!confirm(msg)) return;
                             setResults(prev => prev.filter(p => p.id !== r.id));
                             setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; });
                             if (selected?.id === r.id) setSelected(null);
