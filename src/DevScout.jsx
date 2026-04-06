@@ -991,7 +991,8 @@ export default function DevScout({ user }) {
                 <div>
                   {summary && <div style={{ fontSize: 12, color: "#94a3b8" }}>{summary}</div>}
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", color: "#6366f1", fontWeight: 700 }}>{filtered.length} found</span>
                   <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>↓ Export CSV</button>
                 </div>
               </div>
