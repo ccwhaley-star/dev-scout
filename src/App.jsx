@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './AuthProvider';
 import DevScout from './DevScout';
 import Dashboard from './Dashboard';
+import Profile from './Profile';
+import Admin from './Admin';
 
 function LoginScreen() {
   const { signIn, signInWithEmail, signUp } = useAuth();
@@ -65,7 +67,7 @@ function LoginScreen() {
 }
 
 function AppShell() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, isAdmin, signOut } = useAuth();
   const [view, setView] = useState('scout');
 
   if (loading) return (
@@ -81,10 +83,10 @@ function AppShell() {
       {/* Top nav */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', height: 44, background: '#fff', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {['scout', 'dashboard'].map(v => (
+          {['scout', 'dashboard', 'profile', ...(isAdmin ? ['admin'] : [])].map(v => (
             <button key={v} onClick={() => setView(v)}
-              style={{ padding: '6px 16px', borderRadius: 5, border: 'none', background: view === v ? '#eef2ff' : 'transparent', color: view === v ? '#6366f1' : '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
-              {v === 'scout' ? 'Scout' : 'Dashboard'}
+              style={{ padding: '6px 16px', borderRadius: 5, border: 'none', background: view === v ? '#eef2ff' : 'transparent', color: view === v ? '#6366f1' : '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'capitalize' }}>
+              {v}
             </button>
           ))}
         </div>
@@ -104,7 +106,10 @@ function AppShell() {
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {view === 'scout' ? <DevScout user={user} /> : <Dashboard />}
+        {view === 'scout' && <DevScout user={user} />}
+        {view === 'dashboard' && <Dashboard />}
+        {view === 'profile' && <Profile />}
+        {view === 'admin' && isAdmin && <Admin />}
       </div>
     </div>
   );

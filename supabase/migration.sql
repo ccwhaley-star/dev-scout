@@ -8,8 +8,25 @@ CREATE TABLE user_profiles (
   full_name TEXT,
   avatar_url TEXT,
   linkedin_url TEXT,
+  is_admin BOOLEAN DEFAULT false,
+  is_disabled BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Set admin by email
+CREATE OR REPLACE FUNCTION set_admin_on_create()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email = 'ccwhaley@gmail.com' THEN
+    NEW.is_admin := true;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER auto_set_admin
+  BEFORE INSERT ON user_profiles
+  FOR EACH ROW EXECUTE FUNCTION set_admin_on_create();
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read profiles" ON user_profiles FOR SELECT USING (auth.role() = 'authenticated');
