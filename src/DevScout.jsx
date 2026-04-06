@@ -601,6 +601,89 @@ export default function DevScout({ user }) {
 
       const newCount = newProspects.length;
 
+      // Apollo enrichment: find verified emails for each prospect
+      pushLog("Finding verified emails via Apollo...");
+      setProgress(92);
+      const apolloUrl = `${API_URL}/api/apollo`;
+      const authHeaders = {};
+      if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+
+      for (let i = 0; i < newProspects.length; i++) {
+        const p = newProspects[i];
+        try {
+          let recruiterData = null;
+
+          if (p.recruiter?.name && p.recruiter.name.length > 2) {
+            // We have a name — enrich to get verified email
+            const nameParts = p.recruiter.name.trim().split(/\s+/);
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || '';
+            const domain = p.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+
+            const enrichRes = await fetch(apolloUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify({ action: 'enrich', firstName, lastName, company: p.company, domain, linkedinUrl: p.recruiter.linkedinUrl }),
+            });
+            if (enrichRes.ok) {
+              recruiterData = await enrichRes.json();
+            }
+          } else {
+            // No recruiter name — search Apollo for one
+            const searchRes = await fetch(apolloUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify({ action: 'search', company: p.company }),
+            });
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (searchData.contacts?.length > 0) {
+                const contact = searchData.contacts[0];
+                // Found a recruiter — now enrich for email
+                const enrichRes = await fetch(apolloUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeaders },
+                  body: JSON.stringify({ action: 'enrich', firstName: contact.firstName, lastName: contact.lastName, company: p.company, linkedinUrl: contact.linkedinUrl, apolloId: contact.apolloId }),
+                });
+                if (enrichRes.ok) {
+                  recruiterData = await enrichRes.json();
+                  // Also update the recruiter name/title since we found one
+                  if (!p.recruiter) p.recruiter = {};
+                  p.recruiter.name = contact.name;
+                  p.recruiter.title = contact.title;
+                  p.recruiter.linkedinUrl = contact.linkedinUrl;
+                }
+              }
+            }
+          }
+
+          // Apply Apollo data
+          if (recruiterData?.email) {
+            if (!p.recruiter) p.recruiter = {};
+            p.recruiter.email = recruiterData.email;
+            p.recruiter.emailVerified = recruiterData.emailStatus === 'verified';
+            if (recruiterData.photoUrl) p.recruiter.photoUrl = recruiterData.photoUrl;
+            if (recruiterData.linkedinUrl && !p.recruiter.linkedinUrl) p.recruiter.linkedinUrl = recruiterData.linkedinUrl;
+            pushLog(`✓ ${p.company}: ${recruiterData.email}`);
+          } else {
+            pushLog(`– ${p.company}: no verified email found`);
+          }
+        } catch (apolloErr) {
+          console.error(`Apollo error for ${p.company}:`, apolloErr);
+        }
+        setProgress(92 + Math.round((i + 1) / newProspects.length * 6));
+      }
+
+      // Update results with Apollo data
+      setResults(prev => {
+        const existing = new Map(prev.map(r => [r.company.toLowerCase(), r]));
+        for (const p of newProspects) {
+          const key = p.company.toLowerCase();
+          existing.set(key, existing.has(key) ? { ...existing.get(key), recruiter: p.recruiter } : p);
+        }
+        return [...existing.values()];
+      });
+
       // Save to Supabase
       try {
         const { supabase } = await import('./supabaseClient');
