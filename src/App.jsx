@@ -69,6 +69,7 @@ function LoginScreen() {
 function AppShell() {
   const { user, loading, isAdmin, signOut } = useAuth();
   const [view, setView] = useState('scout');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#94a3b8' }}>
@@ -82,25 +83,42 @@ function AppShell() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Top nav */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', height: 44, background: '#fff', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['scout', 'dashboard', 'profile', ...(isAdmin ? ['admin'] : [])].map(v => (
-            <button key={v} onClick={() => setView(v)}
-              style={{ padding: '6px 16px', borderRadius: 5, border: 'none', background: view === v ? '#eef2ff' : 'transparent', color: view === v ? '#6366f1' : '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'capitalize' }}>
-              {v}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button onClick={() => setView('scout')}
+            style={{ padding: '6px 16px', borderRadius: 5, border: 'none', background: view === 'scout' ? '#eef2ff' : 'transparent', color: view === 'scout' ? '#6366f1' : '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
+            Scout
+          </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
           <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>
             {user.user_metadata?.full_name || user.email}
           </span>
-          {user.user_metadata?.avatar_url && (
-            <img src={user.user_metadata.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} />
-          )}
-          <button onClick={signOut}
-            style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', color: '#94a3b8', fontSize: 11, cursor: 'pointer', fontFamily: 'monospace' }}>
-            Sign out
+          {/* Gear icon */}
+          <button onClick={() => setMenuOpen(!menuOpen)}
+            style={{ padding: 4, borderRadius: 4, border: 'none', background: menuOpen ? '#eef2ff' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={menuOpen ? '#6366f1' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
           </button>
+          {/* Dropdown menu */}
+          {menuOpen && (
+            <div style={{ position: 'absolute', top: 36, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', zIndex: 50, minWidth: 160, overflow: 'hidden' }}>
+              {[
+                { label: 'Dashboard', key: 'dashboard' },
+                { label: 'Profile', key: 'profile' },
+                ...(isAdmin ? [{ label: 'Admin', key: 'admin' }] : []),
+              ].map(item => (
+                <button key={item.key} onClick={() => { setView(item.key); setMenuOpen(false); }}
+                  style={{ width: '100%', padding: '10px 16px', border: 'none', background: view === item.key ? '#f8fafc' : '#fff', color: view === item.key ? '#6366f1' : '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace', textAlign: 'left', borderBottom: '1px solid #f1f5f9' }}>
+                  {item.label}
+                </button>
+              ))}
+              <button onClick={() => { signOut(); setMenuOpen(false); }}
+                style={{ width: '100%', padding: '10px 16px', border: 'none', background: '#fff', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace', textAlign: 'left' }}>
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
