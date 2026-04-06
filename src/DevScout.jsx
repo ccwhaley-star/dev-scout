@@ -43,7 +43,9 @@ JSON format (omit any field that is empty or unknown):
 {"prospects":[{"company":"","industry":"","size":0,"location":"","roles":[],"source":"","posted":"","matchScore":0,"recruiter":{"name":"","title":"","linkedinUrl":"","email":""},"nearshoreScore":0,"nearshoreSignals":[],"notes":""}],"searchSummary":""}
 matchScore: 90-100=perfect fit, 75-89=strong, 60-74=moderate. nearshoreScore: 80-100=high likelihood, 50-79=medium, 0-49=low. Return 4-6 prospects maximum. Keep notes under 10 words. Omit empty URL fields entirely — only include URLs you actually found.`;
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+// Production (Netlify): empty string → relative /api/messages → Netlify Functions
+// Local dev: VITE_API_URL=http://localhost:3002 → Express proxy
+const API_URL = import.meta.env.VITE_API_URL || "";
 const AGENT_MODEL = "claude-haiku-4-5-20251001";
 const AGENT_MAX_ROUNDS = 6;
 

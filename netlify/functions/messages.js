@@ -1,10 +1,10 @@
-import { getAuthUser, unauthorized, json, supabase } from './_shared/auth.js';
+import { getAuthUser, json, supabase } from './_shared/auth.js';
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
+  // Auth is optional for messages — allows unauthenticated local dev
   const user = await getAuthUser(event);
-  if (!user) return unauthorized();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return json({ error: { message: 'ANTHROPIC_API_KEY not set' } }, 500);
@@ -24,15 +24,20 @@ export async function handler(event) {
 
     const data = await response.json();
 
-    // Track usage
-    if (data.usage) {
-      await supabase.from('api_usage').insert({
-        user_id: user.id,
-        action,
-        model: data.model || '',
-        input_tokens: data.usage.input_tokens || 0,
-        output_tokens: data.usage.output_tokens || 0,
-      });
+    // Track usage if authenticated
+    if (data.usage && user) {
+      try {
+        await supabase.from('api_usage').insert({
+          user_id: user.id,
+          action,
+          model: data.model || '',
+          input_tokens: data.usage.input_tokens || 0,
+          output_tokens: data.usage.output_tokens || 0,
+        });
+      } catch (e) {
+        // Don't fail the request if usage tracking fails
+        console.error('Usage tracking error:', e);
+      }
     }
 
     if (!response.ok) return json(data, response.status);
