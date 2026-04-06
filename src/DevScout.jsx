@@ -28,10 +28,11 @@ const Tag = ({ children, color = "#64748b" }) => (
   <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: color + "18", color, border: `1px solid ${color}33`, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "monospace" }}>{children}</span>
 );
 
-const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers. Do exactly 2 web searches, then IMMEDIATELY return the JSON. Do NOT do more than 3 searches.
+const SYSTEM = `You search job boards and return results as JSON. Search for companies hiring software developers across MULTIPLE job boards: Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice. Use 3-4 searches covering different boards, then IMMEDIATELY return the JSON.
 
 Rules:
-- After 2-3 searches, STOP searching and return the JSON immediately. Do not search more.
+- Do 3-4 web searches across different job boards (e.g. "site:indeed.com software engineer", "site:dice.com developer", "site:linkedin.com/jobs software engineer"). Vary the boards.
+- After 3-4 searches, STOP searching and return the JSON immediately. Do not search more.
 - Always return JSON even with partial data. Use best estimates for missing fields.
 - Include ANY company you find hiring developers, regardless of size or industry.
 - REQUIRED: Every prospect MUST include a recruiter or hiring manager name. First check the job posting for a contact. If none is listed, search LinkedIn for a talent acquisition, recruiter, or HR contact at that company (e.g. "[company name] recruiter LinkedIn" or "[company name] talent acquisition"). Use the most relevant person you find. If you still cannot find any contact name for a company, do NOT include that prospect.
