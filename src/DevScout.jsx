@@ -1028,14 +1028,18 @@ export default function DevScout({ user }) {
                         <div className="ds-hide-mobile" style={{ width: 42, height: 42, borderRadius: 9, background: lc + "18", border: `1px solid ${lc}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: lc, fontFamily: "monospace", flexShrink: 0, overflow: "hidden", position: "relative" }}>
                           {initials}
                           <img
-                            src={r.logoUrl || `https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`}
+                            src={r.logoUrl || `https://logo.clearbit.com/${r.company.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/)[0]}.com`}
                             alt=""
                             style={{ width: 42, height: 42, objectFit: "contain", position: "absolute", background: "#fff", padding: 4, borderRadius: 9 }}
                             onError={e => {
-                              if (!e.target.dataset.tried) {
+                              const tries = parseInt(e.target.dataset.tried || "0");
+                              const words = r.company.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(w => !["inc", "llc", "corp", "co", "group", "the", "and"].includes(w));
+                              if (tries === 0) {
                                 e.target.dataset.tried = "1";
-                                const words = r.company.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/);
-                                e.target.src = `https://logo.clearbit.com/${words[0]}.com`;
+                                e.target.src = `https://logo.clearbit.com/${words.join("")}.com`;
+                              } else if (tries === 1 && words.length > 1) {
+                                e.target.dataset.tried = "2";
+                                e.target.src = `https://logo.clearbit.com/${words.slice(0,2).join("")}.com`;
                               } else { e.target.style.display = "none"; }
                             }}
                           />
