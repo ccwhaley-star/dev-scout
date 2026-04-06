@@ -432,8 +432,8 @@ export default function DevScout({ user }) {
           localStorage.setItem("ds_username", data.full_name);
         }
       });
-      // Load prospects from shared pool
-      supabase.from('prospects').select('*').order('match_score', { ascending: false }).then(({ data, error }) => {
+      // Load prospects from shared pool (join claimer name)
+      supabase.from('prospects').select('*, claimer:user_profiles!claimed_by(full_name)').order('match_score', { ascending: false }).then(({ data, error }) => {
         console.log('Supabase prospects load:', data?.length || 0, 'rows', error?.message || 'OK');
         if (data && data.length > 0) {
           const mapped = data.map(p => ({
@@ -470,6 +470,7 @@ export default function DevScout({ user }) {
             recruiterRelationship: p.recruiter_relationship,
             scanned_by: p.scanned_by,
             claimed_by: p.claimed_by,
+            claimed_by_name: p.claimer?.full_name || null,
           }));
           setResults(mapped);
           setPhase("done");
@@ -834,6 +835,8 @@ export default function DevScout({ user }) {
           // Claim the prospect
           await supabase.from('prospects').update({ claimed_by: user.id, claimed_at: new Date().toISOString() }).eq('id', prospect.dbId).is('claimed_by', null);
         }
+        // Update local state with claim
+        setResults(prev => prev.map(r => r.id === id ? { ...r, claimed_by: user.id, claimed_by_name: user.user_metadata?.full_name || user.email } : r));
       } catch (dbErr) { console.error('Supabase sequence save error:', dbErr); }
     } catch (err) {
       console.error("Sequence error:", err);
@@ -1060,14 +1063,23 @@ export default function DevScout({ user }) {
                             </div>
                             );
                           })()}
-                          {(!seq || seqStep === "idle" || seqStep === "error") && (
-                            <div style={{ marginTop: 14 }}>
-                              <button onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
-                                style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
-                                ▶ Start Sequence
-                              </button>
-                            </div>
-                          )}
+                          {(!seq || seqStep === "idle" || seqStep === "error") && (() => {
+                            const claimedByOther = r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local';
+                            return (
+                              <div style={{ marginTop: 14 }}>
+                                {claimedByOther ? (
+                                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6366f1", padding: "6px 12px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6, display: "inline-block" }}>
+                                    Assigned to {r.claimed_by_name || 'another user'}
+                                  </span>
+                                ) : (
+                                  <button onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
+                                    style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
+                                    ▶ Start Sequence
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="ds-hide-mobile" style={{ width: 150, flexShrink: 0 }}>
                           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4, fontFamily: "monospace", cursor: "default" }} title="Match Score based on number of open dev roles, company growth, company size fit, industry, hiring urgency and propensity to nearshore, based on public information.">MATCH SCORE</div>
@@ -1077,6 +1089,11 @@ export default function DevScout({ user }) {
                         {seqStep === "sent" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.sent }}>SENT</span>}
                         {seqStep === "replied" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.replied }}>REPLIED</span>}
                         {seqStep === "researching" && <span style={{ ...BADGE_BASE, ...STEP_COLORS.researching, display: "flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 10, height: 10, border: "2px solid #bfdbfe", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />RESEARCHING</span>}
+                        {!seqStep && r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local' && (
+                          <span style={{ ...BADGE_BASE, fontSize: 9, padding: "3px 8px", background: "#eef2ff", color: "#6366f1", border: "1px solid #c7d2fe" }}>
+                            {r.claimed_by_name || 'Assigned'}
+                          </span>
+                        )}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M6 9l6 6 6-6"/></svg>
                         <button onClick={e => {
                             e.stopPropagation();
