@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
@@ -408,6 +408,29 @@ export default function DevScout({ user }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState(() => localStorage.getItem("ds_linkedin") || "");
   const [userName, setUserName] = useState(() => localStorage.getItem("ds_username") || "");
+
+  // Pre-populate from user profile
+  useEffect(() => {
+    if (!user) return;
+    if (user.user_metadata?.full_name && !userName) {
+      setUserName(user.user_metadata.full_name);
+      localStorage.setItem("ds_username", user.user_metadata.full_name);
+    }
+    // Load LinkedIn URL from Supabase profile
+    import('./supabaseClient').then(({ supabase }) => {
+      if (!supabase || user.id === 'local') return;
+      supabase.from('user_profiles').select('linkedin_url, full_name').eq('id', user.id).single().then(({ data }) => {
+        if (data?.linkedin_url && !linkedinUrl) {
+          setLinkedinUrl(data.linkedin_url);
+          localStorage.setItem("ds_linkedin", data.linkedin_url);
+        }
+        if (data?.full_name && !userName) {
+          setUserName(data.full_name);
+          localStorage.setItem("ds_username", data.full_name);
+        }
+      });
+    });
+  }, [user]);
   const [enrichPhase, setEnrichPhase] = useState("idle");
   const [enrichProgress, setEnrichProgress] = useState(0);
   const [copiedId, setCopiedId] = useState(null);
