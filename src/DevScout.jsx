@@ -411,7 +411,6 @@ export default function DevScout({ user }) {
   const [enrichPhase, setEnrichPhase] = useState("idle");
   const [enrichProgress, setEnrichProgress] = useState(0);
   const [copiedId, setCopiedId] = useState(null);
-  const [confirmClear, setConfirmClear] = useState(false);
   const logRef = useRef(null);
 
   const loadDemo = () => {
@@ -447,10 +446,6 @@ export default function DevScout({ user }) {
     setPhase("idle"); setProgress(0); setSummary("");
   };
 
-  const clearAll = () => {
-    setResults([]); setSummary(""); setSequences({}); setSelected(null); setPhase("idle"); setLogs([]); nextId.current = 1;
-    setEnrichPhase("idle"); setEnrichProgress(0);
-  };
 
   const runScan = async () => {
     const controller = new AbortController();
@@ -766,15 +761,6 @@ export default function DevScout({ user }) {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>↓ Export CSV</button>
-                  {confirmClear ? (
-                    <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <span style={{ fontSize: 11, color: "#ef4444", fontFamily: "monospace" }}>Clear all?</span>
-                      <button onClick={() => { clearAll(); setConfirmClear(false); }} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>Yes</button>
-                      <button onClick={() => setConfirmClear(false)} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#ffffff", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>No</button>
-                    </span>
-                  ) : (
-                    <button onClick={() => setConfirmClear(true)} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #fecaca", background: "#ffffff", color: "#ef4444", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>✕ Clear All</button>
-                  )}
                 </div>
               </div>
 
