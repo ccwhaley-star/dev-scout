@@ -432,8 +432,8 @@ export default function DevScout({ user }) {
           localStorage.setItem("ds_username", data.full_name);
         }
       });
-      // Load prospects from shared pool (join claimer name)
-      supabase.from('prospects').select('*, claimer:user_profiles!claimed_by(full_name)').order('match_score', { ascending: false }).then(({ data, error }) => {
+      // Load prospects from shared pool
+      supabase.from('prospects').select('*').order('match_score', { ascending: false }).then(async ({ data, error }) => {
         console.log('Supabase prospects load:', data?.length || 0, 'rows', error?.message || 'OK');
         if (data && data.length > 0) {
           const mapped = data.map(p => ({
@@ -470,8 +470,17 @@ export default function DevScout({ user }) {
             recruiterRelationship: p.recruiter_relationship,
             scanned_by: p.scanned_by,
             claimed_by: p.claimed_by,
-            claimed_by_name: p.claimer?.full_name || null,
+            claimed_by_name: null,
           }));
+          // Load claimer names for claimed prospects
+          const claimerIds = [...new Set(data.filter(p => p.claimed_by).map(p => p.claimed_by))];
+          if (claimerIds.length > 0) {
+            const { data: profiles } = await supabase.from('user_profiles').select('id, full_name').in('id', claimerIds);
+            if (profiles) {
+              const nameMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name]));
+              mapped.forEach(p => { if (p.claimed_by) p.claimed_by_name = nameMap[p.claimed_by] || null; });
+            }
+          }
           setResults(mapped);
           setPhase("done");
         }
