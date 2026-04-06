@@ -573,7 +573,11 @@ export default function DevScout({ user }) {
         throw new Error(`Could not parse JSON. Raw: ${raw.slice(0, 200)}`);
       }
 
+      console.log("Parsed result:", JSON.stringify(parsed).slice(0, 500));
       const allProspects = parsed.prospects || [];
+      if (allProspects.length === 0) {
+        throw new Error("Scan returned 0 prospects — try a more specific focus query.");
+      }
       console.log(`Parsed ${allProspects.length} prospects:`,
         allProspects.map(p => `${p.company}: recruiter=${p.recruiter?.name || "NONE"}`));
       const newProspects = allProspects.map(p => {
