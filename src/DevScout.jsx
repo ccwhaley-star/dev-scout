@@ -433,7 +433,8 @@ export default function DevScout({ user }) {
         }
       });
       // Load prospects from shared pool
-      supabase.from('prospects').select('*').order('match_score', { ascending: false }).then(({ data }) => {
+      supabase.from('prospects').select('*').order('match_score', { ascending: false }).then(({ data, error }) => {
+        console.log('Supabase prospects load:', data?.length || 0, 'rows', error?.message || 'OK');
         if (data && data.length > 0) {
           const mapped = data.map(p => ({
             id: p.id,
@@ -475,7 +476,8 @@ export default function DevScout({ user }) {
         }
       });
       // Load sequences
-      supabase.from('sequences').select('*').then(({ data }) => {
+      supabase.from('sequences').select('*').then(({ data, error }) => {
+        console.log('Supabase sequences load:', data?.length || 0, 'rows', error?.message || 'OK');
         if (data && data.length > 0) {
           const seqMap = {};
           data.forEach(s => {
