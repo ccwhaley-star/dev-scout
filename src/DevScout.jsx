@@ -404,10 +404,10 @@ export default function DevScout({ user }) {
   const [selected, setSelected] = useState(null);
   const [sequences, setSequences] = useState({});
   // Filters are static defaults for now — ready to wire up filter UI later
-  const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 10000, minMatch: 0 }), []);
+  const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 15000, minMatch: 0 }), []);
   const [customQuery, setCustomQuery] = useState("");
   const scanMinSize = 100;
-  const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 10000 : 1000);
+  const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 15000 : 1000);
   const [errorMsg, setErrorMsg] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState(() => localStorage.getItem("ds_linkedin") || "");
   const [userName, setUserName] = useState(() => localStorage.getItem("ds_username") || "");
@@ -930,7 +930,7 @@ export default function DevScout({ user }) {
             <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
               <span>MAX EMPLOYEES</span><span style={{ color: "#3b82f6" }}>100–{scanMaxSize.toLocaleString()}</span>
             </div>
-            <input type="range" min={100} max={10000} step={100} value={scanMaxSize} onChange={e => setScanMaxSize(+e.target.value)} style={{ width: "100%", accentColor: "#3b82f6" }} />
+            <input type="range" min={100} max={15000} step={100} value={scanMaxSize} onChange={e => setScanMaxSize(+e.target.value)} style={{ width: "100%", accentColor: "#3b82f6" }} />
           </div>
 
           {phase === "scanning" && (
