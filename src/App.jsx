@@ -8,6 +8,7 @@ import Admin from './Admin';
 function LoginScreen() {
   const { signIn, signInWithEmail, signUp } = useAuth();
   const [mode, setMode] = useState('signin');
+  const [showAbout, setShowAbout] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -33,7 +34,43 @@ function LoginScreen() {
   const tabStyle = (active) => ({ padding: '8px 20px', borderRadius: 6, border: 'none', background: active ? '#eef2ff' : 'transparent', color: active ? '#6366f1' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' });
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9', position: 'relative' }}>
+      {/* About link */}
+      <button onClick={() => setShowAbout(true)}
+        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', color: '#6366f1', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
+        About DevScout
+      </button>
+
+      {/* About modal */}
+      {showAbout && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAbout(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '36px 40px', maxWidth: 600, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowAbout(false)} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', fontSize: 18, color: '#94a3b8', cursor: 'pointer' }}>&times;</button>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 6 }}>DevScout</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.08em', marginBottom: 24 }}>AI-POWERED PROSPECTING</div>
+
+            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
+              <p style={{ marginBottom: 16 }}>DevScout automates the process of finding companies actively hiring software developers, identifying the right hiring contacts, and generating personalized outreach sequences.</p>
+
+              <p style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, marginBottom: 8 }}>How It Works</p>
+
+              <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>1. AI-Powered Scan</strong> &mdash; Searches Indeed, LinkedIn, ZipRecruiter, BuiltIn, and Dice simultaneously using Claude AI with real-time web search. Finds companies hiring developers with 100-15,000 employees, focusing on non-tech industries.</p>
+
+              <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>2. Intelligent Scoring</strong> &mdash; Each prospect receives a Match Score (0-100) based on hiring fit (open roles, company size, industry, urgency) and nearshore propensity (scaling pain, high-cost location, non-tech industry).</p>
+
+              <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>3. Contact Discovery</strong> &mdash; Identifies the hiring manager or recruiter from job postings or LinkedIn, then uses Apollo.io to find verified work email addresses.</p>
+
+              <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>4. AI Research Brief</strong> &mdash; Claude researches each prospect in real-time: company news, funding, growth signals, recruiter background, role analysis, and specific talking points for personalized outreach.</p>
+
+              <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>5. Automated Outreach</strong> &mdash; Generates a personalized 3-email sequence (intro, follow-up, breakup) referencing specific company insights and BairesDev case studies. Emails can be drafted directly in Gmail.</p>
+
+              <p style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, marginTop: 20, marginBottom: 8 }}>Team Features</p>
+              <p style={{ marginBottom: 8 }}><strong>Shared prospect pool</strong> &mdash; all prospects visible to the team. <strong>Prospect claiming</strong> prevents duplicate outreach. <strong>Dashboard</strong> tracks emails sent, responses, and API usage. <strong>Admin panel</strong> manages team accounts.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: '#fff', padding: '48px 56px', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', width: 380 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 28, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 8 }}>DevScout</div>
