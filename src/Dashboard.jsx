@@ -51,7 +51,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 24 }}>Dashboard</div>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 24 }}>Dashboard</div>
 
       {/* Tab toggle */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
