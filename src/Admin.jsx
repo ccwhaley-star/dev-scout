@@ -68,7 +68,7 @@ export default function Admin() {
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>Admin Panel</div>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 8 }}>Admin Panel</div>
       <div style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 24 }}>Manage team accounts and access</div>
 
       {actionMsg && (
