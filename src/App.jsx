@@ -47,7 +47,7 @@ function LoginScreen() {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9', position: 'relative' }}>
       {/* About link */}
       <button onClick={() => setShowAbout(true)}
-        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', color: '#6366f1', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.02em' }}>
+        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', color: '#6366f1', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
         About DevScout
       </button>
 
@@ -59,7 +59,7 @@ function LoginScreen() {
             <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 6 }}>DevScout</div>
             <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.08em', marginBottom: 24 }}>AI-POWERED PROSPECTING</div>
 
-            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
+            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8, fontFamily: "'DM Sans', sans-serif" }}>
               <p style={{ marginBottom: 16 }}>DevScout automates the process of finding companies actively hiring software developers, identifying the right hiring contacts, and generating personalized outreach sequences.</p>
 
               <p style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, marginBottom: 8 }}>How It Works</p>
