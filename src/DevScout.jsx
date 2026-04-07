@@ -920,33 +920,22 @@ export default function DevScout({ user }) {
       <div className="ds-layout" style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
         <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #f1f5f9", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
-          <div style={{ position: "relative" }}>
-            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>INDUSTRY</div>
-            <button onClick={() => setIndustryOpen(!industryOpen)}
-              style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: selectedIndustries.length > 0 ? "#334155" : "#94a3b8", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box", cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedIndustries.length === 0 ? "All Industries" : selectedIndustries.length === 1 ? selectedIndustries[0] : `${selectedIndustries.length} selected`}</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            {industryOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 20, maxHeight: 240, overflowY: "auto", marginTop: 4 }}>
-                {selectedIndustries.length > 0 && (
-                  <button onClick={() => setSelectedIndustries([])}
-                    style={{ width: "100%", padding: "6px 10px", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#6366f1", fontSize: 11, cursor: "pointer", fontFamily: "monospace", textAlign: "left" }}>
-                    Clear all
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>INDUSTRY{selectedIndustries.length > 0 ? ` (${selectedIndustries.length})` : ""}</span>
+              {selectedIndustries.length > 0 && <button onClick={() => setSelectedIndustries([])} style={{ background: "none", border: "none", color: "#6366f1", fontSize: 10, cursor: "pointer", fontFamily: "monospace", padding: 0 }}>Clear</button>}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {["Healthcare", "Finance", "Insurance", "Manufacturing", "Retail", "Logistics", "Education", "Real Estate", "Energy", "Aerospace", "Automotive", "Food & Bev", "Hospitality", "Media", "Telecom", "Agriculture", "Construction", "Government", "Pharma", "FinTech"].map(ind => {
+                const checked = selectedIndustries.includes(ind);
+                return (
+                  <button key={ind} onClick={() => setSelectedIndustries(prev => checked ? prev.filter(i => i !== ind) : [...prev, ind])}
+                    style={{ padding: "4px 8px", borderRadius: 4, border: `1px solid ${checked ? "#6366f1" : "#e2e8f0"}`, background: checked ? "#eef2ff" : "#fff", color: checked ? "#6366f1" : "#94a3b8", fontSize: 10, cursor: "pointer", fontFamily: "monospace", fontWeight: checked ? 600 : 400, transition: "all 0.15s" }}>
+                    {ind}
                   </button>
-                )}
-                {["Healthcare", "Finance / Banking", "Insurance", "Manufacturing", "Retail / E-commerce", "Logistics / Supply Chain", "Education", "Real Estate", "Energy / Utilities", "Aerospace / Defense", "Automotive", "Food & Beverage", "Hospitality / Travel", "Media / Entertainment", "Telecommunications", "Agriculture", "Construction", "Government", "Pharmaceutical", "FinTech"].map(ind => {
-                  const checked = selectedIndustries.includes(ind);
-                  return (
-                    <label key={ind} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", background: checked ? "#f0f4ff" : "#fff", fontSize: 12, fontFamily: "monospace", color: "#334155", borderBottom: "1px solid #f8fafc" }}>
-                      <input type="checkbox" checked={checked} onChange={() => setSelectedIndustries(prev => checked ? prev.filter(i => i !== ind) : [...prev, ind])}
-                        style={{ accentColor: "#6366f1" }} />
-                      {ind}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
 
           {phase === "scanning" ? (
