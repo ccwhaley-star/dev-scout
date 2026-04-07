@@ -1221,7 +1221,7 @@ export default function DevScout({ user }) {
                                 <div style={{ marginBottom: 16 }}>
                                   <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", marginBottom: 8, letterSpacing: "0.08em" }}>RESEARCH BRIEF</div>
                                   <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", fontSize: 13, color: "#334155", lineHeight: 1.7 }}>
-                                    {seq.research}
+                                    {seq.research.replace(/<cite[^>]*>/gi, '').replace(/<\/cite>/gi, '')}
                                   </div>
                                 </div>
                               )}
@@ -1245,7 +1245,7 @@ export default function DevScout({ user }) {
                                       <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px" }}>
                                         <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Subject: {em.subject}</div>
                                         <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.7 }}>
-                                          {em.body.split(/\n\n+/).map((para, pi) => <p key={pi} style={{ margin: "0 0 10px 0" }}>{para}</p>)}
+                                          {em.body.replace(/<cite[^>]*>/gi, '').replace(/<\/cite>/gi, '').split(/\n\n+/).map((para, pi) => <p key={pi} style={{ margin: "0 0 10px 0" }}>{para}</p>)}
                                         </div>
                                         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                                           <button onClick={e => {
