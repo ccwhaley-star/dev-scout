@@ -1292,8 +1292,31 @@ export default function DevScout({ user }) {
                                   </button>
                                 )}
                                 {seqStep === "sent" && (
-                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f1f5f9", color: "#94a3b8", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sent
+                                  <>
+                                    <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f1f5f9", color: "#94a3b8", fontSize: 11, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Sent
+                                    </span>
+                                    <button onClick={async e => {
+                                        e.stopPropagation();
+                                        setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "replied" } }));
+                                        try {
+                                          const { supabase } = await import('./supabaseClient');
+                                          if (supabase && user?.id !== 'local') {
+                                            await supabase.from('outreach_events').insert({ user_id: user.id, prospect_id: r.dbId || null, event_type: 'replied', email_type: sequences[r.id]?.emails?.[sequences[r.id]?.activeEmail || 0]?.type || 'intro' });
+                                            if (sequences[r.id]?.dbId) {
+                                              await supabase.from('sequences').update({ step: 'replied', updated_at: new Date().toISOString() }).eq('id', sequences[r.id].dbId);
+                                            }
+                                          }
+                                        } catch (err) { console.error('Outreach event error:', err); }
+                                      }}
+                                      style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#16a34a", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
+                                      Mark Replied
+                                    </button>
+                                  </>
+                                )}
+                                {seqStep === "replied" && (
+                                  <span style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#16a34a", fontSize: 11, fontFamily: "monospace", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Replied
                                   </span>
                                 )}
                                 {(seq.refreshCount || 0) < 3 ? (
