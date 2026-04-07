@@ -690,12 +690,43 @@ export default function DevScout({ user }) {
         setProgress(92 + Math.round((i + 1) / newProspects.length * 6));
       }
 
-      // Update results with Apollo data
+      // Cross-reference with LinkedIn connections
+      try {
+        const stored = localStorage.getItem('ds_linkedin_connections');
+        if (stored) {
+          const linkedinConns = JSON.parse(stored);
+          for (const p of newProspects) {
+            const companyLower = p.company.toLowerCase();
+            const matches = linkedinConns.filter(c => c.company && companyLower.includes(c.company.toLowerCase()) || c.company && c.company.toLowerCase().includes(companyLower));
+            if (matches.length > 0) {
+              p.connectionStatus = {
+                status: "likely",
+                connectionDegree: "1st",
+                details: `You have ${matches.length} connection${matches.length > 1 ? 's' : ''} at ${p.company}`,
+                mutualConnections: matches.slice(0, 3).map(m => `${m.name} - ${m.position || 'Unknown role'}`),
+                sharedGroups: [],
+              };
+              p.companyRelationship = `${matches.length} direct connection${matches.length > 1 ? 's' : ''}`;
+              // Check if recruiter is a direct connection
+              if (p.recruiter?.name) {
+                const recruiterMatch = matches.find(m => m.name.toLowerCase() === p.recruiter.name.toLowerCase());
+                if (recruiterMatch) {
+                  p.recruiterRelationship = "1st degree connection";
+                  if (recruiterMatch.email && !p.recruiter.email) p.recruiter.email = recruiterMatch.email;
+                }
+              }
+              pushLog(`\u2713 ${p.company}: ${matches.length} LinkedIn connection${matches.length > 1 ? 's' : ''}`);
+            }
+          }
+        }
+      } catch (connErr) { console.error('LinkedIn cross-ref error:', connErr); }
+
+      // Update results with Apollo + LinkedIn data
       setResults(prev => {
         const existing = new Map(prev.map(r => [r.company.toLowerCase(), r]));
         for (const p of newProspects) {
           const key = p.company.toLowerCase();
-          existing.set(key, existing.has(key) ? { ...existing.get(key), recruiter: p.recruiter } : p);
+          existing.set(key, existing.has(key) ? { ...existing.get(key), recruiter: p.recruiter, connectionStatus: p.connectionStatus || existing.get(key)?.connectionStatus, companyRelationship: p.companyRelationship || existing.get(key)?.companyRelationship, recruiterRelationship: p.recruiterRelationship || existing.get(key)?.recruiterRelationship } : p);
         }
         return [...existing.values()];
       });
