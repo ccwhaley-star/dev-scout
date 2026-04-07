@@ -47,7 +47,7 @@ function LoginScreen() {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9', position: 'relative' }}>
       {/* About link */}
       <button onClick={() => setShowAbout(true)}
-        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', color: '#6366f1', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
+        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', color: '#6366f1', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.02em' }}>
         About DevScout
       </button>
 
@@ -73,9 +73,6 @@ function LoginScreen() {
               <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>4. AI Research Brief</strong> &mdash; Claude researches each prospect in real-time: company news, funding, growth signals, recruiter background, role analysis, and specific talking points for personalized outreach.</p>
 
               <p style={{ marginBottom: 12 }}><strong style={{ color: '#4f46e5' }}>5. Automated Outreach</strong> &mdash; Generates a personalized 3-email sequence (intro, follow-up, breakup) referencing specific company insights and BairesDev case studies. Emails can be drafted directly in Gmail.</p>
-
-              <p style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, marginTop: 20, marginBottom: 8 }}>Team Features</p>
-              <p style={{ marginBottom: 8 }}><strong>Shared prospect pool</strong> &mdash; all prospects visible to the team. <strong>Prospect claiming</strong> prevents duplicate outreach. <strong>Dashboard</strong> tracks emails sent, responses, and API usage. <strong>Admin panel</strong> manages team accounts.</p>
             </div>
           </div>
         </div>
