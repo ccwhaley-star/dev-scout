@@ -927,17 +927,6 @@ export default function DevScout({ user }) {
               rows={3} style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }} />
           </div>
 
-          <div>
-            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>YOUR LINKEDIN</div>
-            <input value={linkedinUrl} onChange={e => { setLinkedinUrl(e.target.value); localStorage.setItem("ds_linkedin", e.target.value); }}
-              placeholder="https://linkedin.com/in/your-profile"
-              style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box" }} />
-            <input value={userName} onChange={e => { setUserName(e.target.value); localStorage.setItem("ds_username", e.target.value); }}
-              placeholder="Your full name (optional)"
-              style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box", marginTop: 6 }} />
-            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginTop: 4 }}>Enables recruiter cross-referencing</div>
-          </div>
-
           {phase === "scanning" ? (
             <button onClick={stopScan}
               style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", cursor: "pointer", background: "#ef4444", color: "white", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
