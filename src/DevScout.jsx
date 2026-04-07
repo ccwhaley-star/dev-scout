@@ -1272,7 +1272,21 @@ export default function DevScout({ user }) {
                               {/* Status Actions */}
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 {seqStep === "ready" && (
-                                  <button onClick={e => { e.stopPropagation(); setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "sent" } })); }}
+                                  <button onClick={async e => {
+                                      e.stopPropagation();
+                                      setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "sent" } }));
+                                      try {
+                                        const { supabase } = await import('./supabaseClient');
+                                        if (supabase && user?.id !== 'local') {
+                                          const activeIdx = sequences[r.id]?.activeEmail || 0;
+                                          const emailType = sequences[r.id]?.emails?.[activeIdx]?.type || 'intro';
+                                          await supabase.from('outreach_events').insert({ user_id: user.id, prospect_id: r.dbId || null, event_type: 'sent', email_type: emailType });
+                                          if (sequences[r.id]?.dbId) {
+                                            await supabase.from('sequences').update({ step: 'sent', updated_at: new Date().toISOString() }).eq('id', sequences[r.id].dbId);
+                                          }
+                                        }
+                                      } catch (err) { console.error('Outreach event error:', err); }
+                                    }}
                                     style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
                                     Mark Sent
                                   </button>
