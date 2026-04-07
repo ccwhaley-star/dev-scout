@@ -16,10 +16,20 @@ function LoginScreen() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const passwordChecks = [
+    { test: p => p.length >= 8, label: '8+ characters' },
+    { test: p => /[A-Z]/.test(p), label: 'Uppercase letter' },
+    { test: p => /[a-z]/.test(p), label: 'Lowercase letter' },
+    { test: p => /[0-9]/.test(p), label: 'Number' },
+    { test: p => /[^A-Za-z0-9]/.test(p), label: 'Special character' },
+  ];
+  const allPasswordValid = passwordChecks.every(c => c.test(password));
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setSuccess(''); setLoading(true);
     if (mode === 'signup') {
+      if (!allPasswordValid) { setError('Password does not meet all requirements'); setLoading(false); return; }
       const { error: err } = await signUp(email, password, fullName);
       if (err) setError(err.message);
       else setSuccess('Account created! Check your email to confirm, then sign in.');
@@ -89,7 +99,16 @@ function LoginScreen() {
             <input type="text" placeholder="Full name" value={fullName} onChange={e => setFullName(e.target.value)} required style={inputStyle} />
           )}
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={inputStyle} />
+          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : 6} style={inputStyle} />
+          {mode === 'signup' && password.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+              {passwordChecks.map(c => (
+                <span key={c.label} style={{ fontSize: 10, fontFamily: 'monospace', color: c.test(password) ? '#16a34a' : '#94a3b8' }}>
+                  {c.test(password) ? '\u2713' : '\u2022'} {c.label}
+                </span>
+              ))}
+            </div>
+          )}
           {error && <div style={{ fontSize: 12, color: '#dc2626', fontFamily: 'monospace' }}>{error}</div>}
           {success && <div style={{ fontSize: 12, color: '#16a34a', fontFamily: 'monospace' }}>{success}</div>}
           <button type="submit" disabled={loading}
