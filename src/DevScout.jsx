@@ -405,7 +405,8 @@ export default function DevScout({ user }) {
   const [sequences, setSequences] = useState({});
   // Filters are static defaults for now — ready to wire up filter UI later
   const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 15000, minMatch: 0 }), []);
-  const [customQuery, setCustomQuery] = useState("");
+  const [selectedIndustries, setSelectedIndustries] = useState([]);
+  const [industryOpen, setIndustryOpen] = useState(false);
   const scanMinSize = 100;
   const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 15000 : 1000);
   const [errorMsg, setErrorMsg] = useState("");
@@ -559,9 +560,8 @@ export default function DevScout({ user }) {
     }, 800);
 
     const sizeRange = `${scanMinSize.toLocaleString()}–${scanMaxSize.toLocaleString()}`;
-    const userMsg = customQuery
-      ? `Search Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice for companies actively hiring software developers. Focus: ${customQuery}. Company size must be ${sizeRange} employees. Return only JSON.`
-      : `Search Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice for companies actively hiring software developers or engineers right now. Company headcount must be ${sizeRange} employees. Focus on non-tech industries. Return only JSON.`;
+    const industryFocus = selectedIndustries.length > 0 ? ` Focus on these industries: ${selectedIndustries.join(", ")}.` : ' Focus on non-tech industries.';
+    const userMsg = `Search Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice for companies actively hiring software developers or engineers right now. Company headcount must be ${sizeRange} employees.${industryFocus} Return only JSON.`;
 
     try {
       let searchCount = 0;
@@ -920,11 +920,33 @@ export default function DevScout({ user }) {
       <div className="ds-layout" style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
         <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #f1f5f9", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
-          <div>
-            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>FOCUS QUERY (optional)</div>
-            <textarea value={customQuery} onChange={e => setCustomQuery(e.target.value)}
-              placeholder="e.g. healthcare in Texas, fintech hiring React devs..."
-              rows={3} style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: "#334155", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }} />
+          <div style={{ position: "relative" }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8 }}>INDUSTRY</div>
+            <button onClick={() => setIndustryOpen(!industryOpen)}
+              style={{ width: "100%", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, color: selectedIndustries.length > 0 ? "#334155" : "#94a3b8", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", boxSizing: "border-box", cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedIndustries.length === 0 ? "All Industries" : selectedIndustries.length === 1 ? selectedIndustries[0] : `${selectedIndustries.length} selected`}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            {industryOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 20, maxHeight: 240, overflowY: "auto", marginTop: 4 }}>
+                {selectedIndustries.length > 0 && (
+                  <button onClick={() => setSelectedIndustries([])}
+                    style={{ width: "100%", padding: "6px 10px", border: "none", borderBottom: "1px solid #f1f5f9", background: "#fff", color: "#6366f1", fontSize: 11, cursor: "pointer", fontFamily: "monospace", textAlign: "left" }}>
+                    Clear all
+                  </button>
+                )}
+                {["Healthcare", "Finance / Banking", "Insurance", "Manufacturing", "Retail / E-commerce", "Logistics / Supply Chain", "Education", "Real Estate", "Energy / Utilities", "Aerospace / Defense", "Automotive", "Food & Beverage", "Hospitality / Travel", "Media / Entertainment", "Telecommunications", "Agriculture", "Construction", "Government", "Pharmaceutical", "FinTech"].map(ind => {
+                  const checked = selectedIndustries.includes(ind);
+                  return (
+                    <label key={ind} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", background: checked ? "#f0f4ff" : "#fff", fontSize: 12, fontFamily: "monospace", color: "#334155", borderBottom: "1px solid #f8fafc" }}>
+                      <input type="checkbox" checked={checked} onChange={() => setSelectedIndustries(prev => checked ? prev.filter(i => i !== ind) : [...prev, ind])}
+                        style={{ accentColor: "#6366f1" }} />
+                      {ind}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {phase === "scanning" ? (
