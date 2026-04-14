@@ -605,7 +605,7 @@ export default function DevScout({ user }) {
           const ns = p.nearshoreScore || 0;
           const combined = Math.round((ms + ns) / 2);
           const existingClient = isExistingClient(p.company);
-          return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns, isExistingClient: existingClient };
+          return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns, isExistingClient: existingClient, isNew: true };
         });
 
       // Merge with existing results, deduplicating by company name (case-insensitive)
@@ -1098,6 +1098,7 @@ export default function DevScout({ user }) {
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
                             <span style={{ fontWeight: 600, fontSize: 15, color: "#0f172a" }}>{r.company}</span>
                             {r.isExistingClient && <Tag color="#d97706">EXISTING CLIENT</Tag>}
+                            {r.isNew && <Tag color="#16a34a">NEW</Tag>}
                             <Tag color={sourceColors[r.source] || "#64748b"}>{r.source || "—"}</Tag>
                             {r.connectionStatus && r.connectionStatus.status !== "none" && r.connectionStatus.connectionDegree && r.connectionStatus.connectionDegree !== "unknown" && (
                               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#0a66c2", marginLeft: 4 }}>
