@@ -407,7 +407,7 @@ export default function DevScout({ user }) {
   // Filters are static defaults for now — ready to wire up filter UI later
   const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 15000, minMatch: 0 }), []);
   const [selectedIndustries, setSelectedIndustries] = useState([]);
-  const [industryOpen, setIndustryOpen] = useState(false);
+  const [clientsOnly, setClientsOnly] = useState(false);
   const scanMinSize = 100;
   const [scanMaxSize, setScanMaxSize] = useState(() => window.innerWidth <= 768 ? 15000 : 1000);
   const [errorMsg, setErrorMsg] = useState("");
@@ -565,6 +565,11 @@ export default function DevScout({ user }) {
     if (customScanMsg.current) {
       userMsg = customScanMsg.current;
       customScanMsg.current = null;
+    } else if (clientsOnly) {
+      // Randomly sample 15 clients to search
+      const { BAIRESDEV_CLIENTS } = await import('./clients');
+      const shuffled = [...BAIRESDEV_CLIENTS].sort(() => Math.random() - 0.5).slice(0, 15);
+      userMsg = `Search for these specific companies and check if they are currently hiring software developers or engineers: ${shuffled.join(", ")}. Return any that have active developer job postings. Return only JSON.`;
     } else {
       const sizeRange = `${scanMinSize.toLocaleString()}–${scanMaxSize.toLocaleString()}`;
       const industryFocus = selectedIndustries.length > 0 ? ` Focus on these industries: ${selectedIndustries.join(", ")}.` : ' Focus on non-tech industries.';
@@ -931,11 +936,15 @@ export default function DevScout({ user }) {
         <div className="ds-sidebar" style={{ width: 264, borderRight: "1px solid #f1f5f9", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0, background: "#ffffff", position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto" }}>
           <div>
             <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", letterSpacing: "0.08em", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>INDUSTRY{selectedIndustries.length > 0 ? ` (${selectedIndustries.length})` : ""}</span>
-              {selectedIndustries.length > 0 && <button onClick={() => setSelectedIndustries([])} style={{ background: "none", border: "none", color: "#6366f1", fontSize: 10, cursor: "pointer", fontFamily: "monospace", padding: 0 }}>Clear</button>}
+              <span>TARGET</span>
+              {(selectedIndustries.length > 0 || clientsOnly) && <button onClick={() => { setSelectedIndustries([]); setClientsOnly(false); }} style={{ background: "none", border: "none", color: "#6366f1", fontSize: 10, cursor: "pointer", fontFamily: "monospace", padding: 0 }}>Clear</button>}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {["Healthcare", "Finance", "Insurance", "Manufacturing", "Retail", "Logistics", "Education", "Real Estate", "Energy", "Aerospace", "Automotive", "Food & Bev", "Hospitality", "Media", "Telecom", "Agriculture", "Construction", "Government", "Pharma", "FinTech"].map(ind => {
+              <button onClick={() => { setClientsOnly(!clientsOnly); if (!clientsOnly) setSelectedIndustries([]); }}
+                style={{ padding: "4px 8px", borderRadius: 4, border: `1px solid ${clientsOnly ? "#d97706" : "#e2e8f0"}`, background: clientsOnly ? "#fffbeb" : "#fff", color: clientsOnly ? "#d97706" : "#94a3b8", fontSize: 10, cursor: "pointer", fontFamily: "monospace", fontWeight: clientsOnly ? 600 : 400, transition: "all 0.15s" }}>
+                Previous Clients
+              </button>
+              {!clientsOnly && ["Healthcare", "Finance", "Insurance", "Manufacturing", "Retail", "Logistics", "Education", "Real Estate", "Energy", "Aerospace", "Automotive", "Food & Bev", "Hospitality", "Media", "Telecom", "Agriculture", "Construction", "Government", "Pharma", "FinTech"].map(ind => {
                 const checked = selectedIndustries.includes(ind);
                 return (
                   <button key={ind} onClick={() => setSelectedIndustries(prev => checked ? prev.filter(i => i !== ind) : [...prev, ind])}
@@ -964,14 +973,6 @@ export default function DevScout({ user }) {
               <button onClick={loadDemo}
                 style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "#ffffff", color: "#64748b", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
                 ▶&nbsp;&nbsp;LOAD DEMO DATA
-              </button>
-              <button onClick={() => {
-                  const clientSample = ["Arthrex", "Walgreens", "Petco", "Southern Company", "Nike", "Panasonic", "Rolls-Royce", "Signet Jewelers", "Kemper", "Novant Health", "Keurig Dr Pepper", "Logitech", "Restaurant Brands International", "TransUnion", "Regeneron"];
-                  customScanMsg.current = `Search for these specific companies and check if they are currently hiring software developers or engineers: ${clientSample.join(", ")}. Return any that have active developer job postings. Return only JSON.`;
-                  runScan();
-                }}
-                style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #fde68a", cursor: "pointer", background: "#fffbeb", color: "#d97706", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
-                🔍&nbsp;&nbsp;SCAN CLIENTS HIRING
               </button>
             </>
           )}
