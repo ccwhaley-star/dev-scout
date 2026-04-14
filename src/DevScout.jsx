@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
+import { isExistingClient } from "./clients";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
 
@@ -540,6 +541,7 @@ export default function DevScout({ user }) {
 
   const nextId = useRef(1);
   const scanAbort = useRef(null);
+  const customScanMsg = useRef(null);
 
   const stopScan = () => {
     if (scanAbort.current) { scanAbort.current.abort(); scanAbort.current = null; }
@@ -559,9 +561,15 @@ export default function DevScout({ user }) {
       setProgress(prev => prev < 18 ? prev + 2 : prev);
     }, 800);
 
-    const sizeRange = `${scanMinSize.toLocaleString()}–${scanMaxSize.toLocaleString()}`;
-    const industryFocus = selectedIndustries.length > 0 ? ` Focus on these industries: ${selectedIndustries.join(", ")}.` : ' Focus on non-tech industries.';
-    const userMsg = `Search Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice for companies actively hiring software developers or engineers right now. Company headcount must be ${sizeRange} employees.${industryFocus} Return only JSON.`;
+    let userMsg;
+    if (customScanMsg.current) {
+      userMsg = customScanMsg.current;
+      customScanMsg.current = null;
+    } else {
+      const sizeRange = `${scanMinSize.toLocaleString()}–${scanMaxSize.toLocaleString()}`;
+      const industryFocus = selectedIndustries.length > 0 ? ` Focus on these industries: ${selectedIndustries.join(", ")}.` : ' Focus on non-tech industries.';
+      userMsg = `Search Indeed, LinkedIn Jobs, ZipRecruiter, BuiltIn, and Dice for companies actively hiring software developers or engineers right now. Company headcount must be ${sizeRange} employees.${industryFocus} Return only JSON.`;
+    }
 
     try {
       let searchCount = 0;
@@ -596,7 +604,8 @@ export default function DevScout({ user }) {
           const ms = p.matchScore || 0;
           const ns = p.nearshoreScore || 0;
           const combined = Math.round((ms + ns) / 2);
-          return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns };
+          const existingClient = isExistingClient(p.company);
+          return { ...p, id: nextId.current++, matchScore: combined, rawMatchScore: ms, rawNearshoreScore: ns, isExistingClient: existingClient };
         });
 
       // Merge with existing results, deduplicating by company name (case-insensitive)
@@ -951,10 +960,20 @@ export default function DevScout({ user }) {
           )}
 
           {phase === "idle" && (
-            <button onClick={loadDemo}
-              style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "#ffffff", color: "#64748b", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
-              ▶&nbsp;&nbsp;LOAD DEMO DATA
-            </button>
+            <>
+              <button onClick={loadDemo}
+                style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer", background: "#ffffff", color: "#64748b", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
+                ▶&nbsp;&nbsp;LOAD DEMO DATA
+              </button>
+              <button onClick={() => {
+                  const clientSample = ["Arthrex", "Walgreens", "Petco", "Southern Company", "Nike", "Panasonic", "Rolls-Royce", "Signet Jewelers", "Kemper", "Novant Health", "Keurig Dr Pepper", "Logitech", "Restaurant Brands International", "TransUnion", "Regeneron"];
+                  customScanMsg.current = `Search for these specific companies and check if they are currently hiring software developers or engineers: ${clientSample.join(", ")}. Return any that have active developer job postings. Return only JSON.`;
+                  runScan();
+                }}
+                style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "1px solid #fde68a", cursor: "pointer", background: "#fffbeb", color: "#d97706", fontFamily: "monospace", fontWeight: 600, fontSize: 11, letterSpacing: "0.05em" }}>
+                🔍&nbsp;&nbsp;SCAN CLIENTS HIRING
+              </button>
+            </>
           )}
 
           <div>
@@ -1078,6 +1097,7 @@ export default function DevScout({ user }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
                             <span style={{ fontWeight: 600, fontSize: 15, color: "#0f172a" }}>{r.company}</span>
+                            {r.isExistingClient && <Tag color="#d97706">EXISTING CLIENT</Tag>}
                             <Tag color={sourceColors[r.source] || "#64748b"}>{r.source || "—"}</Tag>
                             {r.connectionStatus && r.connectionStatus.status !== "none" && r.connectionStatus.connectionDegree && r.connectionStatus.connectionDegree !== "unknown" && (
                               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#0a66c2", marginLeft: 4 }}>
@@ -1111,7 +1131,11 @@ export default function DevScout({ user }) {
                             const claimedByOther = r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local';
                             return (
                               <div style={{ marginTop: 14 }}>
-                                {claimedByOther ? (
+                                {r.isExistingClient ? (
+                                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#d97706", padding: "6px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, display: "inline-block" }}>
+                                    Existing BairesDev Client — upsell opportunity
+                                  </span>
+                                ) : claimedByOther ? (
                                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6366f1", padding: "6px 12px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6, display: "inline-block" }}>
                                     Assigned to {r.claimed_by_name || 'another user'}
                                   </span>
