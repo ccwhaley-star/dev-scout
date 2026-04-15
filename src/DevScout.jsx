@@ -476,6 +476,7 @@ export default function DevScout({ user }) {
             claimed_by: p.claimed_by,
             claimed_by_name: null,
             pipelineStage: p.pipeline_stage || "new",
+            isExistingClient: isExistingClient(p.company),
           }));
           // Load claimer names for claimed prospects
           const claimerIds = [...new Set(data.filter(p => p.claimed_by).map(p => p.claimed_by))];
@@ -1127,7 +1128,7 @@ export default function DevScout({ user }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
                             <span style={{ fontWeight: 600, fontSize: 15, color: "#0f172a" }}>{r.company}</span>
-                            {r.isExistingClient && <Tag color="#d97706">EXISTING CLIENT</Tag>}
+                            {r.isExistingClient && <Tag color="#d97706">PREVIOUS CLIENT</Tag>}
                             {r.isNew && <Tag color="#16a34a">NEW</Tag>}
                             <Tag color={sourceColors[r.source] || "#64748b"}>{r.source || "—"}</Tag>
                             {r.connectionStatus && r.connectionStatus.status !== "none" && r.connectionStatus.connectionDegree && r.connectionStatus.connectionDegree !== "unknown" && (
@@ -1164,7 +1165,7 @@ export default function DevScout({ user }) {
                               <div style={{ marginTop: 14 }}>
                                 {r.isExistingClient ? (
                                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#d97706", padding: "6px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, display: "inline-block" }}>
-                                    Existing BairesDev Client — upsell opportunity
+                                    Previous BairesDev Client — re-engage opportunity
                                   </span>
                                 ) : claimedByOther ? (
                                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6366f1", padding: "6px 12px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6, display: "inline-block" }}>

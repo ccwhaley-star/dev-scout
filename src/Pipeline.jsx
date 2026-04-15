@@ -123,7 +123,7 @@ export default function Pipeline({ results, sequences, onStageChange, onSelectPr
 
                     {/* Tags */}
                     <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-                      {r.isExistingClient && <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a", fontFamily: "monospace", fontWeight: 600 }}>CLIENT</span>}
+                      {r.isExistingClient && <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a", fontFamily: "monospace", fontWeight: 600 }}>PREV CLIENT</span>}
                       {r.claimed_by && <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: "#eef2ff", color: "#6366f1", border: "1px solid #c7d2fe", fontFamily: "monospace", fontWeight: 600 }}>{r.claimed_by_name?.split(" ")[0] || "Claimed"}</span>}
                     </div>
                   </div>
