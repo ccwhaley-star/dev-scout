@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
 import { isExistingClient } from "./clients";
+import Pipeline from "./Pipeline";
 
 const sourceColors = { LinkedIn: "#0a66c2", Indeed: "#2557a7", ZipRecruiter: "#00a960", BuiltIn: "#f26522", Dice: "#eb1c26", Multiple: "#7c3aed" };
 
@@ -404,6 +405,7 @@ export default function DevScout({ user }) {
   const [summary, setSummary] = useState("");
   const [selected, setSelected] = useState(null);
   const [sequences, setSequences] = useState({});
+  const [viewMode, setViewMode] = useState("list");
   // Filters are static defaults for now — ready to wire up filter UI later
   const filters = useMemo(() => ({ source: "All", industry: "All", minSize: 100, maxSize: 15000, minMatch: 0 }), []);
   const [selectedIndustries, setSelectedIndustries] = useState([]);
@@ -473,6 +475,7 @@ export default function DevScout({ user }) {
             scanned_by: p.scanned_by,
             claimed_by: p.claimed_by,
             claimed_by_name: null,
+            pipelineStage: p.pipeline_stage || "new",
           }));
           // Load claimer names for claimed prospects
           const claimerIds = [...new Set(data.filter(p => p.claimed_by).map(p => p.claimed_by))];
@@ -902,6 +905,18 @@ export default function DevScout({ user }) {
     }
   };
 
+  const handleStageChange = async (prospectId, newStage) => {
+    setResults(prev => prev.map(r => r.id === prospectId ? { ...r, pipelineStage: newStage } : r));
+    // Persist to Supabase
+    try {
+      const { supabase } = await import('./supabaseClient');
+      const prospect = results.find(r => r.id === prospectId);
+      if (supabase && user?.id !== 'local' && prospect?.dbId) {
+        await supabase.from('prospects').update({ pipeline_stage: newStage, updated_at: new Date().toISOString() }).eq('id', prospect.dbId);
+      }
+    } catch (err) { console.error('Stage update error:', err); }
+  };
+
   const exportCSV = () => {
     const rows = ["Company,Industry,Size,Location,Source,Match Score,Nearshore Score,Nearshore Signals,Roles,Recruiter Name,Recruiter Title,Recruiter LinkedIn,Connection Status,Company Relationship,Recruiter Relationship,Sequence Status,Notes",
       ...filtered.map(r => `"${r.company}","${r.industry || ""}",${r.size || ""},"${r.location || ""}","${r.source || ""}",${r.matchScore || ""},${r.nearshoreScore ?? ""},"${(r.nearshoreSignals || []).join("; ")}","${(r.roles || []).join("; ")}","${r.recruiter?.name || ""}","${r.recruiter?.title || ""}","${r.recruiter?.linkedinUrl || ""}","${r.connectionStatus?.status || ""}","${r.companyRelationship || ""}","${r.recruiterRelationship || ""}","${sequences[r.id]?.step || "none"}","${r.notes || ""}"`)
@@ -1056,10 +1071,24 @@ export default function DevScout({ user }) {
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span style={{ fontSize: 12, fontFamily: "monospace", color: "#6366f1", fontWeight: 700 }}>{filtered.length} found</span>
+                  {/* View toggle */}
+                  <div style={{ display: "flex", border: "1px solid #e2e8f0", borderRadius: 6, overflow: "hidden" }}>
+                    <button onClick={() => setViewMode("list")}
+                      style={{ padding: "6px 10px", border: "none", background: viewMode === "list" ? "#eef2ff" : "#fff", color: viewMode === "list" ? "#6366f1" : "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <button onClick={() => setViewMode("pipeline")}
+                      style={{ padding: "6px 10px", border: "none", borderLeft: "1px solid #e2e8f0", background: viewMode === "pipeline" ? "#eef2ff" : "#fff", color: viewMode === "pipeline" ? "#6366f1" : "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+                    </button>
+                  </div>
                   <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>↓ Export CSV</button>
                 </div>
               </div>
 
+              {viewMode === "pipeline" ? (
+                <Pipeline results={filtered} sequences={sequences} onStageChange={handleStageChange} onSelectProspect={r => setSelected(selected?.id === r.id ? null : r)} />
+              ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {filtered.map(r => {
                   const isOpen = selected?.id === r.id;
@@ -1142,7 +1171,7 @@ export default function DevScout({ user }) {
                                     Assigned to {r.claimed_by_name || 'another user'}
                                   </span>
                                 ) : (
-                                  <button className="ds-btn" onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); }}
+                                  <button className="ds-btn" onClick={e => { e.stopPropagation(); startSequence(r); setSelected(r); handleStageChange(r.id, "prospecting"); }}
                                     style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "monospace", fontWeight: 600 }}>
                                     ▶ Start Sequence
                                   </button>
@@ -1332,6 +1361,7 @@ export default function DevScout({ user }) {
                                   <button onClick={async e => {
                                       e.stopPropagation();
                                       setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "sent" } }));
+                                      handleStageChange(r.id, "contacted");
                                       try {
                                         const { supabase } = await import('./supabaseClient');
                                         if (supabase && user?.id !== 'local') {
@@ -1356,6 +1386,7 @@ export default function DevScout({ user }) {
                                     <button onClick={async e => {
                                         e.stopPropagation();
                                         setSequences(prev => ({ ...prev, [r.id]: { ...prev[r.id], step: "replied" } }));
+                                        handleStageChange(r.id, "replied");
                                         try {
                                           const { supabase } = await import('./supabaseClient');
                                           if (supabase && user?.id !== 'local') {
@@ -1399,6 +1430,7 @@ export default function DevScout({ user }) {
                   );
                 })}
               </div>
+              )}
             </>
           )}
         </div>

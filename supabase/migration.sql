@@ -86,6 +86,7 @@ CREATE TABLE prospects (
   scanned_by UUID REFERENCES auth.users(id),
   claimed_by UUID REFERENCES auth.users(id),
   claimed_at TIMESTAMPTZ,
+  pipeline_stage TEXT DEFAULT 'new',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(company_lower)
