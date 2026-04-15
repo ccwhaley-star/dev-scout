@@ -330,7 +330,21 @@ LinkedIn: ${userLinkedin || "not provided"}
 
 Research this company and recruiter, then generate the outreach sequence JSON.`;
 
-  return runAgentLoopCore({ system: SYSTEM_SEQUENCE, max_tokens: 6000, userMsg, token, action: "sequence" });
+  const raw = await runAgentLoopCore({ system: SYSTEM_SEQUENCE, max_tokens: 6000, userMsg, token, action: "sequence" });
+
+  // If response looks like JSON, return it
+  const cleaned = (raw || "").replace(/```json|```/gi, "").trim();
+  if (cleaned.startsWith("{") && cleaned.includes('"emails"')) return raw;
+
+  // Retry: convert text to JSON
+  const retry = await runAgentLoopCore({
+    system: 'Convert the following into a JSON object with "research" (string) and "emails" (array of {type, subject, body}). Return ONLY valid JSON. Start with { end with }.',
+    max_tokens: 6000,
+    userMsg: (raw || "").slice(0, 3000),
+    noTools: true,
+    token, action: "sequence"
+  });
+  return retry;
 }
 
 function parseAgentJSON(raw) {
