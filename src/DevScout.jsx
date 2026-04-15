@@ -1163,11 +1163,7 @@ export default function DevScout({ user }) {
                             const claimedByOther = r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local';
                             return (
                               <div style={{ marginTop: 14 }}>
-                                {r.isExistingClient ? (
-                                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#d97706", padding: "6px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, display: "inline-block" }}>
-                                    Previous BairesDev Client — re-engage opportunity
-                                  </span>
-                                ) : claimedByOther ? (
+                                {claimedByOther ? (
                                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6366f1", padding: "6px 12px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6, display: "inline-block" }}>
                                     Assigned to {r.claimed_by_name || 'another user'}
                                   </span>
