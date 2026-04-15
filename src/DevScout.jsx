@@ -1205,7 +1205,7 @@ export default function DevScout({ user }) {
                           </span>
                         )}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M6 9l6 6 6-6"/></svg>
-                        <button onClick={e => {
+                        <button onClick={async e => {
                             e.stopPropagation();
                             const claimedByOther = r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local';
                             if (claimedByOther) return;
@@ -1216,6 +1216,14 @@ export default function DevScout({ user }) {
                             setResults(prev => prev.filter(p => p.id !== r.id));
                             setSequences(prev => { const next = { ...prev }; delete next[r.id]; return next; });
                             if (selected?.id === r.id) setSelected(null);
+                            // Delete from Supabase
+                            try {
+                              const { supabase } = await import('./supabaseClient');
+                              if (supabase && user?.id !== 'local' && r.dbId) {
+                                await supabase.from('sequences').delete().eq('prospect_id', r.dbId);
+                                await supabase.from('prospects').delete().eq('id', r.dbId);
+                              }
+                            } catch (err) { console.error('Delete error:', err); }
                           }}
                           title={r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local' ? `Claimed by ${r.claimed_by_name || 'another user'}` : "Remove prospect"}
                           style={{ padding: 4, borderRadius: 4, border: "none", background: "transparent", cursor: r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local' ? "not-allowed" : "pointer", color: r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local' ? "#e2e8f0" : "#cbd5e1", display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s", opacity: r.claimed_by && r.claimed_by !== user?.id && r.claimed_by !== 'local' ? 0.3 : 1 }}
