@@ -10,7 +10,7 @@ const STAGES = [
   { key: "closed_won", label: "CLOSED WON", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
 ];
 
-export default function Pipeline({ results, sequences, onStageChange, onSelectProspect }) {
+export default function Pipeline({ results, sequences, onStageChange, onSelectProspect, user }) {
   const [dragOver, setDragOver] = useState(null);
 
   const getStage = (r) => {
@@ -23,9 +23,16 @@ export default function Pipeline({ results, sequences, onStageChange, onSelectPr
     return r.pipelineStage || "new";
   };
 
+  // Filter: NEW column shows unclaimed prospects, all other columns show only the current user's prospects
+  const myResults = results.filter(r => {
+    const stage = getStage(r);
+    if (stage === "new") return !r.claimed_by; // unclaimed only
+    return r.claimed_by === user?.id || r.claimed_by === 'local'; // my claimed prospects
+  });
+
   const grouped = {};
   STAGES.forEach(s => { grouped[s.key] = []; });
-  results.forEach(r => {
+  myResults.forEach(r => {
     const stage = getStage(r);
     if (grouped[stage]) grouped[stage].push(r);
     else grouped["new"].push(r);

@@ -1088,7 +1088,7 @@ export default function DevScout({ user }) {
               </div>
 
               {viewMode === "pipeline" ? (
-                <Pipeline results={filtered} sequences={sequences} onStageChange={handleStageChange} onSelectProspect={r => setSelected(selected?.id === r.id ? null : r)} />
+                <Pipeline results={filtered} sequences={sequences} onStageChange={handleStageChange} onSelectProspect={r => setSelected(selected?.id === r.id ? null : r)} user={user} />
               ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {filtered.map(r => {
