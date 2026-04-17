@@ -1,0 +1,369 @@
+/* ============================================================
+   DevScout Design System — Colors & Typography
+   ============================================================
+   The DevScout system is a light, high-contrast SaaS aesthetic
+   built on slate neutrals with an indigo→violet brand gradient.
+   Copy (labels, metadata, stats) lives in monospace; product
+   wordmarks and headings use the geometric display face Syne;
+   body prose uses DM Sans. The system leans heavily on tiny
+   uppercase mono labels with wide letter-spacing as a
+   signature treatment.
+   ============================================================ */
+
+/* --- Font imports --------------------------------------------------------- */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
+
+:root {
+  /* ──────────────────────────────────────────────────────────
+     COLOR — Brand
+     "Editorial sales software": warm graphite as the primary
+     brand, paired with a terracotta-rust accent. Feels like
+     a high-end trade publication: earthy, confident, quiet.
+     The palette deliberately avoids blue so DevScout doesn't
+     look like every other SaaS. Terracotta carries action;
+     graphite carries identity; paper-cream carries surface.
+     ────────────────────────────────────────────────────────── */
+
+  /* Graphite — primary brand, warm near-black (not blue-black) */
+  --brand-navy-400: #a8a29e;     /* aliased "navy" names kept for back-compat */
+  --brand-navy-500: #78716c;     /* mid graphite */
+  --brand-navy-600: #57534e;     /* hover */
+  --brand-navy-700: #44403c;     /* text-on-light */
+  --brand-navy-900: #1c1917;     /* deep surface, primary ink */
+  --brand-navy-950: #0f0e0d;     /* inverse card / sidebar */
+
+  /* Terracotta — signal accent for CTAs, match scores, active states */
+  --brand-coral-300: #fed7aa;
+  --brand-coral-400: #fdba74;
+  --brand-coral-500: #c2410c;    /* primary accent — deep terracotta */
+  --brand-coral-600: #9a3412;    /* hover */
+  --brand-coral-700: #7c2d12;    /* text on terracotta bg */
+
+  /* Paper — warm cream page background; no pure white anywhere */
+  --paper-50:  #faf7f2;          /* page background */
+  --paper-100: #f5efe6;          /* divider rows / card-on-card */
+
+  /* Historical gradient vars retained for back-compat, mapped to flat. */
+  --brand-gradient: var(--brand-coral-500);
+  --brand-gradient-hot: var(--brand-navy-900);
+  --brand-gradient-progress: var(--brand-coral-500);
+  --brand-gradient-enrich: linear-gradient(90deg, #c2410c, #9a3412);
+
+  /* Soft accent tints — selected-tab bg, chips, sidebar actives */
+  --brand-tint-50:  #fff7ed;     /* terracotta-50 */
+  --brand-tint-100: #ffedd5;     /* terracotta-100 */
+  --brand-tint-200: #fed7aa;     /* terracotta-200 */
+
+  /* Legacy ink tokens */
+  --brand-lime-500: var(--brand-coral-500);
+  --brand-ink-950:  var(--brand-navy-950);
+  --brand-ink-900:  var(--brand-navy-900);
+  --brand-ink-800:  #292524;
+
+  /* ──────────────────────────────────────────────────────────
+     COLOR — Neutrals (slate scale, matches Tailwind)
+     ────────────────────────────────────────────────────────── */
+  --slate-950: #020617;          /* landing page bg / deep ink */
+  --slate-900: #0f172a;          /* heading text */
+  --slate-800: #1e293b;
+  --slate-700: #334155;          /* body text default */
+  --slate-600: #475569;          /* body text secondary */
+  --slate-500: #64748b;          /* muted text */
+  --slate-400: #94a3b8;          /* tertiary / meta labels */
+  --slate-300: #cbd5e1;          /* strong borders / input border */
+  --slate-200: #e2e8f0;          /* default border */
+  --slate-100: #f1f5f9;          /* divider rows */
+  --slate-50:  #f8fafc;          /* card-on-card background */
+  --white:     #ffffff;          /* primary card surface */
+
+  /* ──────────────────────────────────────────────────────────
+     COLOR — Semantic
+     Restrained and cool — the lime accent carries the "signal"
+     weight, so semantics stay muted and informational. Each has
+     a text color, a soft background, and a matching border,
+     used consistently across badges, banners, and pipeline chips.
+     ────────────────────────────────────────────────────────── */
+  /* Success / match ≥ 85 / "replied" CRM stage — the lime family */
+  --success-600: #4d7c0f;
+  --success-bg:  #f7ffe0;
+  --success-border: #d9f99d;
+
+  /* Warning / match 70–84 / "meeting" / previous client — muted amber */
+  --warning-600: #a16207;
+  --warning-bg:  #fefce8;
+  --warning-border: #fde047;
+
+  /* Info / sent state / neutral informational — slate-blue */
+  --info-600: #0369a1;
+  --info-bg:  #f0f9ff;
+  --info-border: #bae6fd;
+
+  /* Replied / active-pipeline stage — cool teal (no purple) */
+  --replied-600: #0e7490;
+  --replied-bg:  #ecfeff;
+  --replied-border: #a5f3fc;
+
+  /* Destructive / error / remove — tamed red, flat */
+  --danger-600: #b91c1c;
+  --danger-500: #dc2626;
+  --danger-bg:  #fef2f2;
+  --danger-border: #fecaca;
+
+  /* Proposal / late-stage pipeline — warm neutral tan */
+  --orange-600: #9a3412;
+  --orange-bg:  #fff7ed;
+  --orange-border: #fed7aa;
+
+  /* ──────────────────────────────────────────────────────────
+     COLOR — External brands (source tags on prospects)
+     ────────────────────────────────────────────────────────── */
+  --src-linkedin:     #0a66c2;
+  --src-indeed:       #2557a7;
+  --src-ziprecruiter: #00a960;
+  --src-builtin:      #f26522;
+  --src-dice:         #eb1c26;
+  --src-multiple:     #7c3aed;
+
+  /* ──────────────────────────────────────────────────────────
+     TYPE — Families
+     Instrument Serif (italic-capable editorial serif) handles
+     display moments — wordmark, page titles, the occasional
+     pull-quote. Geist is the workhorse for all UI copy — it's
+     the current-gen neutral grotesque. Geist Mono replaces
+     JetBrains for a less "coder" feel.
+     ────────────────────────────────────────────────────────── */
+  --font-display: 'Instrument Serif', 'Times New Roman', serif;  /* wordmark, H1, pull quotes */
+  --font-body:    'Geist', system-ui, -apple-system, sans-serif;  /* prose, UI copy */
+  --font-mono:    'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ──────────────────────────────────────────────────────────
+     TYPE — Size scale (the product skews small; 10–15px is the meat)
+     Instrument Serif sizes run ~10% larger than sans equivalents,
+     so fs-2xl / fs-3xl bumped up to give the display face room.
+     ────────────────────────────────────────────────────────── */
+  --fs-xxs: 9px;   /* micro-chips (claimed-by pill) */
+  --fs-xs:  10px;  /* UPPERCASE MONO LABELS — the signature treatment */
+  --fs-sm:  11px;  /* chip/button labels, secondary mono text */
+  --fs-base:12px;  /* default UI font size */
+  --fs-md:  13px;  /* inline body, table cells */
+  --fs-lg:  15px;  /* prospect company name, card titles */
+  --fs-xl:  16px;  /* section headings inside a page */
+  --fs-2xl: 28px;  /* page titles (Dashboard, Profile, Admin) */
+  --fs-3xl: 40px;  /* landing wordmark, editorial display */
+
+  /* ──────────────────────────────────────────────────────────
+     TYPE — Weights
+     Instrument Serif is regular/italic only. Geist covers 400–700.
+     ────────────────────────────────────────────────────────── */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;  /* most headers and button labels */
+  --fw-bold:     700;  /* large numbers, stat values */
+  --fw-black:    700;  /* alias — Instrument Serif has no 800 */
+
+  /* ──────────────────────────────────────────────────────────
+     TYPE — Line height / tracking
+     ────────────────────────────────────────────────────────── */
+  --lh-tight:   1.2;   /* headlines */
+  --lh-snug:    1.4;   /* chips, cards */
+  --lh-normal:  1.6;   /* body */
+  --lh-relaxed: 1.8;   /* long prose in modals */
+
+  --tracking-label: 0.08em;   /* standard uppercase label tracking */
+  --tracking-tight: 0.05em;   /* CTA button labels, button copy */
+
+  /* ──────────────────────────────────────────────────────────
+     RADIUS — The system uses fewer steps than Tailwind
+     ────────────────────────────────────────────────────────── */
+  --radius-xs:  3px;   /* tiny status pills (PREV CLIENT) */
+  --radius-sm:  4px;   /* badges, tags */
+  --radius-md:  5px;   /* toggle buttons, small controls */
+  --radius-lg:  6px;   /* inputs, toolbar buttons */
+  --radius-xl:  8px;   /* primary buttons, nested cards */
+  --radius-2xl: 10px;  /* main cards, stat tiles */
+  --radius-3xl: 16px;  /* modals, login panel */
+  --radius-pill: 9999px;
+
+  /* ──────────────────────────────────────────────────────────
+     SHADOW — Soft, low-opacity, close to the element
+     ────────────────────────────────────────────────────────── */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.06);    /* login panel */
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15);   /* modals */
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.1);
+
+  /* ──────────────────────────────────────────────────────────
+     SPACING — 4-pixel base; most common steps are 4/8/10/12/14/16/20/24/28
+     ────────────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 14px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 28px;
+  --space-10: 32px;
+  --space-11: 40px;
+  --space-12: 48px;
+
+  /* ──────────────────────────────────────────────────────────
+     ALIASES — semantic names used by ui_kits/**
+     ────────────────────────────────────────────────────────── */
+  --ink-900: var(--brand-navy-900);
+  --ink-800: #292524;
+  --ink-700: var(--brand-navy-700);
+  --ink-600: var(--brand-navy-600);
+  --ink-500: var(--brand-navy-500);
+  --ink-400: var(--brand-navy-400);
+
+  --stone-50:  #fafaf9;
+  --stone-100: #f5f5f4;
+  --stone-200: #ebe5da;
+  --stone-300: #d6d3d1;
+  --stone-400: #a8a29e;
+
+  --paper-0:   #ffffff;
+  --paper-200: #ebe5da;
+  --paper-300: #d6d3d1;
+
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-300: #fcd34d;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+
+  --font-serif: var(--font-display);
+  --font-sans:  var(--font-body);
+}
+
+/* ============================================================
+   SEMANTIC TYPE CLASSES
+   ============================================================
+   These are the "ready-to-use" type ramps — name them by role,
+   not by size. Pair them with the variables above when building
+   bespoke compositions.
+   ============================================================ */
+
+/* Wordmark — only for the literal DevScout logo lockup.
+   Instrument Serif regular, italicized for editorial swagger;
+   the period gets the coral accent. */
+.ds-wordmark {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-style: italic;
+  font-size: var(--fs-3xl);
+  line-height: var(--lh-tight);
+  color: var(--brand-navy-900);
+  letter-spacing: -0.01em;
+}
+
+/* Page title (Dashboard, Profile, Admin) — editorial serif, upright */
+.ds-h1 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  color: var(--brand-navy-900);
+  letter-spacing: -0.01em;
+}
+
+/* Empty-state / hero title ("Ready to Scout") — solid navy */
+.ds-h2 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  color: var(--brand-navy-900);
+  letter-spacing: -0.01em;
+}
+
+/* Card / section title */
+.ds-h3 {
+  font-family: var(--font-body);
+  font-weight: var(--fw-bold);
+  font-size: 14px;
+  line-height: var(--lh-snug);
+  color: var(--slate-900);
+}
+
+/* Prospect company name, list-row primary label */
+.ds-title {
+  font-family: var(--font-body);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+  color: var(--slate-900);
+}
+
+/* Default body text */
+.ds-body {
+  font-family: var(--font-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--slate-700);
+}
+
+/* Long-form prose inside modals */
+.ds-prose {
+  font-family: var(--font-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--slate-600);
+}
+
+/* Secondary metadata text (location, industry, employee count) */
+.ds-meta {
+  font-family: var(--font-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-base);
+  color: var(--slate-500);
+}
+
+/* Signature DevScout treatment: tiny uppercase mono label. Used
+   everywhere — section labels, column headers, stat captions. */
+.ds-label {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  color: var(--slate-400);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/* Stat value (huge numbers on the Dashboard) — serif for editorial feel */
+.ds-stat-value {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-3xl);
+  color: var(--brand-navy-900);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Mono code / ID / email addresses */
+.ds-code {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-sm);
+  color: var(--slate-600);
+}
+
+/* Button label — Geist, medium weight, tight tracking */
+.ds-btn-label {
+  font-family: var(--font-body);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+  letter-spacing: -0.01em;
+}
+
+/* Mono button label (toolbar, utility buttons) */
+.ds-btn-mono {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
+}
