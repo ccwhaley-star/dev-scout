@@ -166,6 +166,7 @@ export function useDevScout(user, getToken) {
           map[s.prospect_id] = {
             step: s.step, research: s.research, emails: s.emails || [],
             activeEmail: s.active_email || 0, dbId: s.id,
+            refreshCount: s.refresh_count || 0,
           };
         });
         setSequences(map);
@@ -322,10 +323,16 @@ export function useDevScout(user, getToken) {
     scanAbort.current?.abort();
   }, []);
 
-  // Start sequence for a prospect
+  // Start or refresh sequence for a prospect
   const startSequence = useCallback(async (prospect) => {
     if (!prospect || sequences[prospect.id]?.step === "researching") return;
-    setSequences(prev => ({ ...prev, [prospect.id]: { step: "researching", research: "", emails: [] } }));
+    const existing = sequences[prospect.id] || {};
+    const currentRefreshes = existing.refreshCount ?? 0;
+    // If a prior sequence exists, this is a "refresh" — cap at 3
+    const isRefresh = existing.step && existing.step !== "idle";
+    if (isRefresh && currentRefreshes >= 3) return;
+    const newRefreshCount = isRefresh ? currentRefreshes + 1 : currentRefreshes;
+    setSequences(prev => ({ ...prev, [prospect.id]: { ...existing, step: "researching", refreshCount: newRefreshCount } }));
     try {
       const token = await getToken?.();
       const userMsg = `Generate outreach sequence for:
@@ -349,7 +356,9 @@ Research this prospect and return the outreach JSON.`;
         parsed = parseJSON(retry);
       }
       setSequences(prev => ({ ...prev, [prospect.id]: {
+        ...prev[prospect.id],
         step: "ready", research: parsed.research || "", emails: parsed.emails || [], activeEmail: 0,
+        refreshCount: newRefreshCount,
       }}));
 
       // Persist to Supabase
@@ -357,6 +366,7 @@ Research this prospect and return the outreach JSON.`;
         await supabase.from("sequences").upsert({
           prospect_id: prospect.dbId, user_id: user.id,
           step: "ready", research: parsed.research || "", emails: parsed.emails || [],
+          refresh_count: newRefreshCount,
           updated_at: new Date().toISOString(),
         }, { onConflict: "prospect_id" });
         await supabase.from("prospects")

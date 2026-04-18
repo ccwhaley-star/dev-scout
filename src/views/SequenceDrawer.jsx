@@ -6,6 +6,9 @@ import { CompanyLogo, ConnectionChip } from "../components/Shell";
 
 export default function SequenceDrawer({ prospect, onClose, sequence, onStartSequence, onMarkSent, onMarkReplied, onCopyEmail }) {
   const [activeStep, setActiveStep] = useState(0);
+  const refreshCount = sequence?.refreshCount ?? 0;
+  const refreshesRemaining = Math.max(0, 3 - refreshCount);
+  const isRefreshing = sequence?.step === "researching";
 
   useEffect(() => { setActiveStep(0); }, [prospect?.id]);
 
@@ -130,28 +133,38 @@ export default function SequenceDrawer({ prospect, onClose, sequence, onStartSeq
         </div>
       )}
 
-      {/* Start Sequence CTA (if no sequence yet) */}
-      {!hasSequence && onStartSequence && (
-        <div style={{ padding: "20px 24px" }}>
-          <button onClick={() => onStartSequence(prospect)}
-            style={{
-              width: "100%", padding: "13px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-              background: "var(--brand-coral-500)", color: "var(--paper-50)",
-              fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 600, letterSpacing: "-0.005em",
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "var(--brand-coral-600)"}
-            onMouseLeave={e => e.currentTarget.style.background = "var(--brand-coral-500)"}>
-            ▶ Start Sequence — generate emails
-          </button>
-        </div>
-      )}
-
       {/* Outreach sequence tabs */}
       {(hasSequence || emails.length > 0) && (
         <>
           <div style={{ padding: "14px 24px 0" }}>
-            <div className="ds-label" style={{ letterSpacing: "0.1em", marginBottom: 10 }}>Outreach sequence</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div className="ds-label" style={{ letterSpacing: "0.1em" }}>Outreach sequence</div>
+              {onStartSequence && (
+                <button
+                  onClick={() => refreshesRemaining > 0 && !isRefreshing && onStartSequence(prospect)}
+                  disabled={refreshesRemaining === 0 || isRefreshing}
+                  title={refreshesRemaining === 0 ? "No refreshes remaining" : `Regenerate emails (${refreshesRemaining} remaining)`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "5px 10px", borderRadius: 5,
+                    border: "1px solid var(--stone-300)",
+                    background: refreshesRemaining === 0 ? "var(--paper-100)" : "var(--paper-0)",
+                    color: refreshesRemaining === 0 ? "var(--ink-400)" : "var(--ink-700)",
+                    fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.03em",
+                    cursor: refreshesRemaining === 0 || isRefreshing ? "not-allowed" : "pointer",
+                    transition: "background 120ms ease",
+                  }}
+                  onMouseEnter={e => { if (refreshesRemaining > 0 && !isRefreshing) e.currentTarget.style.background = "var(--paper-100)"; }}
+                  onMouseLeave={e => { if (refreshesRemaining > 0 && !isRefreshing) e.currentTarget.style.background = "var(--paper-0)"; }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isRefreshing ? "spin 0.8s linear infinite" : "none" }}>
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                  </svg>
+                  {isRefreshing ? "Refreshing…" : `Refresh (${refreshesRemaining})`}
+                </button>
+              )}
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               {[{ idx: 0, label: "Intro" }, { idx: 1, label: "Follow-up 1" }, { idx: 2, label: "Follow-up 2" }].map(t => {
                 const isActive = activeStep === t.idx;
