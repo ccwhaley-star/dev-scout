@@ -137,6 +137,22 @@ function ProspectRow({ p, onSelect, onDelete, selected, rowIndex, focused }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-900)", letterSpacing: "-0.005em" }}>{p.company}</span>
+          {p.stage === "contacted" && (
+            <span title="Emailed" style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 3, background: "var(--info-bg)", color: "var(--info-600)", border: "1px solid var(--info-border)", fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Emailed
+            </span>
+          )}
+          {p.stage === "replied" && (
+            <span title="Replied" style={{ padding: "1px 6px", borderRadius: 3, background: "var(--success-bg)", color: "var(--success-600)", border: "1px solid var(--success-border)", fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              ↩ Replied
+            </span>
+          )}
+          {p.stage === "meeting" && (
+            <span title="Meeting scheduled" style={{ padding: "1px 6px", borderRadius: 3, background: "var(--warning-bg)", color: "var(--warning-600)", border: "1px solid var(--warning-border)", fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              📅 Meeting
+            </span>
+          )}
           {p.recruiter?.connection && p.recruiter.connection !== "none" && (
             <span title={`${p.recruiter.connection} connection${p.recruiter.sharedVia ? ` · via ${p.recruiter.sharedVia}` : ""}`} style={{ display: "inline-flex" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2">

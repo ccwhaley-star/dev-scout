@@ -232,33 +232,31 @@ export default function SequenceDrawer({ prospect, onClose, sequence, onStartSeq
             Copy Email
           </button>
         </div>
-        {hasSequence && (
-          <div style={{ display: "flex", gap: 10 }}>
-            {seqStep === "ready" && (
-              <button onClick={() => onMarkSent?.(prospect)}
-                style={{ flex: 1, padding: "10px 16px", borderRadius: 6, border: "none", background: "var(--brand-coral-500)", color: "var(--paper-50)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                Mark as sent
-              </button>
-            )}
-            {seqStep === "sent" && (
-              <>
-                <span style={{ flex: 1, padding: "10px 16px", borderRadius: 6, background: "var(--info-bg)", border: "1px solid var(--info-border)", color: "var(--info-600)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  Sent
-                </span>
-                <button onClick={() => onMarkReplied?.(prospect)}
-                  style={{ flex: 1, padding: "10px 16px", borderRadius: 6, border: "none", background: "var(--success-600)", color: "#fff", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                  Mark replied
-                </button>
-              </>
-            )}
-            {seqStep === "replied" && (
-              <span style={{ flex: 1, padding: "10px 16px", borderRadius: 6, background: "var(--success-bg)", border: "1px solid var(--success-border)", color: "var(--success-600)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, textAlign: "center" }}>
-                Replied — move to Pipeline
+        <div style={{ display: "flex", gap: 10 }}>
+          {(!seqStep || seqStep === "idle" || seqStep === "ready") && (
+            <button onClick={() => onMarkSent?.(prospect)}
+              style={{ flex: 1, padding: "10px 16px", borderRadius: 6, border: "none", background: "var(--brand-coral-500)", color: "var(--paper-50)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Mark as sent
+            </button>
+          )}
+          {seqStep === "sent" && (
+            <>
+              <span style={{ flex: 1, padding: "10px 16px", borderRadius: 6, background: "var(--info-bg)", border: "1px solid var(--info-border)", color: "var(--info-600)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                Sent
               </span>
-            )}
-          </div>
-        )}
+              <button onClick={() => onMarkReplied?.(prospect)}
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 6, border: "none", background: "var(--success-600)", color: "#fff", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Mark replied
+              </button>
+            </>
+          )}
+          {seqStep === "replied" && (
+            <span style={{ flex: 1, padding: "10px 16px", borderRadius: 6, background: "var(--success-bg)", border: "1px solid var(--success-border)", color: "var(--success-600)", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, textAlign: "center" }}>
+              Replied — track in Pipeline
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
